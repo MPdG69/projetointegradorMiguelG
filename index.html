@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal Apoteose</title>
+    
+    <link rel="icon" href="acra.png" type="image/png">
+    
+    <style>
+        :root {
+            --bg-deep: #0a0a0a; 
+            --bg-card: #141414; 
+            --text-main: #e0e0e0;
+            --accent-purple: #9d4edd; 
+            --accent-yellow: #ffcc00; 
+            --accent-red: #ff4d4d; 
+            --border: #333;
+        }
+
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg-deep); color: var(--text-main); margin: 0; }
+
+        /* Header e Logo */
+        .logo-header { text-align: center; padding: 30px 0; background: linear-gradient(to bottom, #1a0b2e, var(--bg-deep)); }
+        .portal-logo { width: 100px; filter: drop-shadow(0 0 10px var(--accent-purple)); animation: glow 3s infinite alternate; }
+        @keyframes glow { from { filter: drop-shadow(0 0 5px var(--accent-purple)); } to { filter: drop-shadow(0 0 20px var(--accent-purple)); } }
+        .logo-header h1 { font-size: 1.8rem; letter-spacing: 5px; margin: 0; text-transform: uppercase; }
+
+        /* Abas */
+        .header-tabs { display: flex; justify-content: center; background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 10px; gap: 20px; position: sticky; top: 0; z-index: 100; }
+        .tab-btn { background: none; border: none; color: #888; font-size: 1.1rem; cursor: pointer; padding: 10px 20px; transition: 0.3s; display: flex; align-items: center; gap: 8px; }
+        .tab-btn.active { color: var(--accent-yellow); border-bottom: 2px solid var(--accent-yellow); }
+
+        .container { max-width: 1200px; margin: 30px auto; padding: 0 20px; }
+        .content { display: none; animation: fadeIn 0.5s ease; }
+        .content.active { display: block; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Grid de Personagens */
+        .char-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; }
+        .char-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 25px; text-align: center; cursor: pointer; transition: 0.3s; }
+        .char-card:hover { border-color: var(--accent-purple); transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
+        .char-card img { width: 90px; height: 90px; border-radius: 50%; object-fit: cover; margin-bottom: 15px; border: 3px solid var(--accent-purple); }
+
+        /* Layout Escudo do Mestre (2 Colunas) */
+        .gm-layout { display: flex; gap: 20px; flex-wrap: wrap; }
+        .gm-stats { flex: 2; min-width: 300px; }
+        .gm-logs { flex: 1; min-width: 300px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 15px; height: fit-content; }
+
+        /* Estilo da Tabela */
+        .gm-table { width: 100%; border-collapse: collapse; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+        .gm-table th, .gm-table td { padding: 12px; text-align: center; border-bottom: 1px solid var(--border); }
+        .gm-table th { background: #1a1a1a; color: var(--accent-yellow); font-size: 0.8rem; text-transform: uppercase; }
+        .stat-bar { height: 6px; background: #000; border-radius: 3px; width: 100px; margin: 5px auto 0; overflow: hidden; }
+        .bar-fill { height: 100%; transition: 0.5s; }
+
+        /* Estilo do Log de Rolagens */
+        .roll-log {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 65vh; 
+            overflow-y: auto;
+            padding: 10px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+        }
+
+        .roll-item { 
+            background: #1a1a1a; 
+            border: 1px solid #333; 
+            padding: 10px 12px; 
+            border-radius: 6px; 
+            min-height: 50px;
+            display: flex;
+            align-items: center;
+            animation: slideIn 0.3s ease; 
+        }
+        
+        .roll-item { background: #1a1a1a; border: 1px solid var(--border); border-left: 4px solid var(--accent-purple); padding: 10px; border-radius: 4px; animation: slideIn 0.3s ease; }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+        
+        .roll-info { display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 5px; }
+        .roll-info strong { color: var(--accent-yellow); }
+        .roll-info span { color: #888; }
+        .roll-result { font-size: 1.2rem; font-weight: bold; text-align: center; color: #fff; }
+
+        /* Filtros de Campanha */
+        #campaign-filters {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            padding: 10px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="logo-header">
+    <img src="acra.png" alt="Logo" class="portal-logo">
+    <h1>Apoteose</h1>
+</div>
+
+<!-- Filtros de Campanha -->
+<div id="campaign-filters" style="display: flex; gap: 10px; justify-content: center; padding: 10px; flex-wrap: wrap;">
+</div>
+
+<div class="header-tabs">
+    <button class="tab-btn active" onclick="switchTab('fichas')"><i class="ph ph-users"></i> Personagens</button>
+    <button class="tab-btn" onclick="switchTab('escudo')"><i class="ph ph-shield"></i> Party</button>
+</div>
+
+<div class="container">
+    <div id="tab-fichas" class="content active">
+        <div style="display: flex; justify-content: flex-end; margin-bottom: 20px;">
+            <button onclick="createNewCharacter()" style="background: var(--accent-purple); color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold;">
+                <i class="ph ph-plus"></i> Novo Personagem
+            </button>
+        </div>
+        <div id="char-list" class="char-grid">
+            <p style="text-align: center; grid-column: 1/-1;">Carregando...</p>
+        </div>
+    </div>
+
+    <div id="tab-escudo" class="content">
+        <div class="gm-layout">
+            <div class="gm-stats">
+                <table class="gm-table">
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>PV</th>
+                            <th>ED</th>
+                            <th>EH</th>
+                        </tr>
+                    </thead>
+                    <tbody id="gm-body"></tbody>
+                </table>
+            </div>
+
+            <div class="gm-logs">
+                <div class="roll-log-title"><i class="ph ph-dice-six"></i> Últimas Rolagens</div>
+                <div id="roll-log" class="roll-log">
+                    <p style="color: #666; font-size: 0.8rem;">Aguardando dados...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Importando os ícones Phosphor -->
+<script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+<script>
+    let selectedCampaign = null;
+    let characters = {};
+    let rollLogs = [];
+
+    // ============================================
+    // FUNÇÕES DE STORAGE (LocalStorage)
+    // ============================================
+    
+    function loadCharacters() {
+        try {
+            const data = localStorage.getItem('apoteose_personagens');
+            characters = data ? JSON.parse(data) : {};
+            // Garantir que cada personagem tenha um ID único como chave
+            return characters;
+        } catch (e) {
+            characters = {};
+            return {};
+        }
+    }
+
+    function saveCharacters() {
+        try {
+            localStorage.setItem('apoteose_personagens', JSON.stringify(characters));
+        } catch (e) {
+            console.error('Erro ao salvar personagens:', e);
+        }
+    }
+
+    function loadRollLogs() {
+        try {
+            const data = localStorage.getItem('apoteose_rolagens');
+            rollLogs = data ? JSON.parse(data) : [];
+            return rollLogs;
+        } catch (e) {
+            rollLogs = [];
+            return [];
+        }
+    }
+
+    function saveRollLogs() {
+        try {
+            // Mantém apenas os últimos 100 registros
+            if (rollLogs.length > 100) {
+                rollLogs = rollLogs.slice(-100);
+            }
+            localStorage.setItem('apoteose_rolagens', JSON.stringify(rollLogs));
+        } catch (e) {
+            console.error('Erro ao salvar rolagens:', e);
+        }
+    }
+
+    function addRollToLog(rollData) {
+        rollLogs.push({
+            ...rollData,
+            _timestamp: Date.now()
+        });
+        saveRollLogs();
+        renderRollLogs();
+    }
+
+    function getNextId() {
+        const ids = Object.keys(characters);
+        if (ids.length === 0) return '1';
+        const maxId = Math.max(...ids.map(id => parseInt(id) || 0));
+        return String(maxId + 1);
+    }
+
+    // ============================================
+    // FUNÇÕES PRINCIPAIS
+    // ============================================
+
+    function switchTab(tabId) {
+        document.querySelectorAll('.content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        document.getElementById('tab-' + tabId).classList.add('active');
+        event.currentTarget.classList.add('active');
+    }
+
+    function renderCampaignFilters() {
+        const filterContainer = document.getElementById('campaign-filters');
+        if (!filterContainer) return;
+
+        // Pega campanhas únicas
+        const campaigns = [...new Set(Object.values(characters)
+            .map(c => c.campanha || 'Sem Campanha')
+            .filter(c => c !== ''))].sort();
+        
+        // Se não houver campanhas, mostra "Todas"
+        if (campaigns.length === 0) {
+            campaigns.push('Todas');
+        }
+
+        // Se não tiver campanha selecionada, seleciona a primeira
+        if (!selectedCampaign || !campaigns.includes(selectedCampaign)) {
+            selectedCampaign = campaigns[0];
+        }
+
+        filterContainer.innerHTML = campaigns.map(camp => `
+            <button class="tab-btn ${selectedCampaign === camp ? 'active' : ''}" 
+                    onclick="setCampaign('${camp}')">
+                ${camp}
+            </button>
+        `).join('');
+    }
+
+    function setCampaign(camp) {
+        selectedCampaign = camp;
+        updateUI();
+    }
+
+    function updateUI() {
+        const listDiv = document.getElementById('char-list');
+        const gmBody = document.getElementById('gm-body');
+        
+        const chars = Object.entries(characters);
+        
+        if (chars.length === 0) {
+            listDiv.innerHTML = '<p style="text-align: center; grid-column: 1/-1; color: #666;">Nenhum personagem criado. Clique em "Novo Personagem" para começar.</p>';
+            gmBody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #666;">Nenhum personagem encontrado.</td></tr>';
+            return;
+        }
+        
+        listDiv.innerHTML = '';
+        gmBody.innerHTML = '';
+
+        chars.forEach(([id, c]) => {
+            const charCampanha = c.campanha || 'Sem Campanha';
+            // Filtro
+            if (selectedCampaign && selectedCampaign !== 'Todas' && charCampanha !== selectedCampaign) {
+                return;
+            }
+            
+            // Card de Seleção
+            const card = document.createElement('div');
+            card.className = 'char-card';
+            card.onclick = () => verificarAcesso(id, c.senha);
+            card.innerHTML = `
+                <img src="${c.img || ''}" onerror="this.src=''">
+                <h3>${c.nome || 'Sem Nome'}</h3>
+                <p>${c.classe || ''}</p>
+                <small style="color: var(--accent-purple);">${charCampanha}</small>
+            `;
+            listDiv.appendChild(card);
+
+            // Linha do Escudo
+            const row = document.createElement('tr');
+            const pvAtual = parseInt(c.pv_atual) || 0;
+            const pvMax = parseInt(c.pv_max) || 1;
+            const edAtual = parseInt(c.ed_atual) || 0;
+            const edMax = parseInt(c.ed_max) || 1;
+            const ehAtual = parseInt(c.eh_atual) || 0;
+            const ehMax = parseInt(c.eh_max) || 1;
+            
+            row.innerHTML = `
+                <td style="text-align:left"><strong>${c.nome || 'Sem Nome'}</strong><br><small style="color: var(--accent-purple);">${charCampanha}</small></td>
+                <td>${pvAtual}/${pvMax}<div class="stat-bar"><div class="bar-fill" style="width:${Math.min(100, (pvAtual/pvMax)*100)}%; background:var(--accent-red)"></div></div></td>
+                <td>${edAtual}/${edMax}<div class="stat-bar"><div class="bar-fill" style="width:${Math.min(100, (edAtual/edMax)*100)}%; background:var(--accent-yellow)"></div></div></td>
+                <td>${ehAtual}/${ehMax}<div class="stat-bar"><div class="bar-fill" style="width:${Math.min(100, (ehAtual/ehMax)*100)}%; background:var(--accent-purple)"></div></div></td>
+            `;
+            gmBody.appendChild(row);
+        });
+
+        if (listDiv.innerHTML === '') {
+            listDiv.innerHTML = '<p style="text-align: center; grid-column: 1/-1; color: #666;">Nenhum personagem encontrado nesta campanha.</p>';
+        }
+        if (gmBody.innerHTML === '') {
+            gmBody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #666;">Nenhum personagem encontrado nesta campanha.</td></tr>';
+        }
+
+        renderCampaignFilters();
+    }
+
+    function renderRollLogs() {
+        const logsDiv = document.getElementById('roll-log');
+        if (!logsDiv) return;
+        
+        if (rollLogs.length === 0) {
+            logsDiv.innerHTML = '<p style="color: #666; font-size: 0.8rem;">Nenhuma rolagem ainda.</p>';
+            return;
+        }
+
+        logsDiv.innerHTML = '';
+        const logsToShow = [...rollLogs].reverse().slice(0, 20);
+
+        logsToShow.forEach(log => {
+            const rollItem = document.createElement('div');
+            rollItem.className = 'roll-item';
+            
+            const nomePersonagem = log.personagem || "Personagem";
+            const tipoRolagem = log.tipo || "Rolagem";
+            const nomeRolagem = log.nome || tipoRolagem;
+            const resultado = log.resultado || log.valor || "0";
+            
+            let displayTipo = tipoRolagem;
+            let displayResultado = resultado;
+            
+            if (tipoRolagem === 'ataque_arma') {
+                displayResultado = `ATQ: ${log.ataque || resultado} | DANO: ${log.dano || '0'}`;
+                displayTipo = nomeRolagem || "Ataque";
+            } else if (tipoRolagem === 'pericia') {
+                displayTipo = nomeRolagem || "Perícia";
+                if (log.detalhes && log.detalhes.length > 0) {
+                    displayResultado = `${resultado} (${log.detalhes.join(', ')})`;
+                }
+            } else {
+                displayTipo = nomeRolagem || tipoRolagem;
+            }
+
+            let corBorda = '#9d4edd';
+            let corTexto = '#fff';
+            
+            if(tipoRolagem && tipoRolagem.toLowerCase().includes('dano') || tipoRolagem === 'ataque_arma') {
+                corBorda = '#ff4d4d';
+                corTexto = '#ff9999';
+            } else if(tipoRolagem && tipoRolagem.toLowerCase().includes('defesa')) {
+                corBorda = '#4d94ff';
+                corTexto = '#99ccff';
+            } else if(tipoRolagem === 'pericia') {
+                corBorda = '#4dff88';
+                corTexto = '#99ffbb';
+            } else if(tipoRolagem && (tipoRolagem.toLowerCase().includes('teste') || tipoRolagem.toLowerCase().includes('salvacao'))) {
+                corBorda = '#ffcc00';
+                corTexto = '#ffeb99';
+            }
+
+            rollItem.style.borderLeft = `4px solid ${corBorda}`;
+
+            rollItem.innerHTML = `
+                <div style="display: flex; flex-direction: column; width: 100%;">
+                    <div style="font-size: 0.75rem; color: #ffcc00; font-weight: bold; text-transform: uppercase; margin-bottom: 2px;">
+                        ${nomePersonagem}
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                        <span style="font-size: 0.8rem; color: ${corTexto}; font-weight: bold;">
+                            ${displayTipo}
+                        </span>
+                        <span style="font-size: 1rem; font-weight: bold; color: #fff;">${displayResultado}</span>
+                    </div>
+                    ${log.critico ? 
+                        '<div style="font-size: 0.7rem; background: rgba(255, 77, 77, 0.2); color: #ff4d4d; font-weight: bold; padding: 2px 6px; border-radius: 3px; text-align: center; margin-top: 2px;">CRÍTICO!</div>' : 
+                        ''}
+                </div>
+            `;
+            logsDiv.appendChild(rollItem);
+        });
+    }
+
+    // ============================================
+    // CRIAÇÃO E ACESSO
+    // ============================================
+
+    function createNewCharacter() {
+        const nome = prompt('Nome do novo personagem:');
+        if (!nome) return;
+        
+        const campanha = prompt('Campanha (ex: "Arena", "Masmorra", deixe em branco para "Sem Campanha"):') || 'Sem Campanha';
+        
+        const id = getNextId();
+        characters[id] = {
+            nome: nome,
+            campanha: campanha,
+            classe: '',
+            nivel: 1,
+            gnivel: 1,
+            dom: '',
+            pv_atual: 0,
+            pv_max: 0,
+            ed_atual: 0,
+            ed_max: 0,
+            eh_atual: 0,
+            eh_max: 0,
+            vig_atual: 0,
+            vig_esquivas: 0,
+            pos_grande: 0,
+            pos_pequena: 0,
+            img: '',
+            lembrancas: 0,
+            divinity_val: 50,
+            carga_max: 20,
+            anotacoes: '',
+            senha: '',
+            atributos: {},
+            pericias: {},
+            inventario: {},
+            defesa: {},
+            habilidadesPassivas: [],
+            habilidadesAtivas: [],
+            resistencias: []
+        };
+        saveCharacters();
+        updateUI();
+        verificarAcesso(id, '');
+    }
+
+    function verificarAcesso(id, senhaCorreta) {
+        if (!senhaCorreta) { irParaFicha(id); return; }
+        const pass = prompt("Senha da Ficha:");
+        if (pass === senhaCorreta) irParaFicha(id);
+        else if (pass !== null) alert("Incorreta!");
+    }
+
+    function irParaFicha(id) {
+        window.location.href = `ficha.html?id=${id}`;
+    }
+
+    // ============================================
+    // INICIALIZAÇÃO
+    // ============================================
+
+    function init() {
+        loadCharacters();
+        loadRollLogs();
+        
+        // Se não houver campanhas, define 'Todas' como padrão
+        const campaigns = [...new Set(Object.values(characters)
+            .map(c => c.campanha || 'Sem Campanha')
+            .filter(c => c !== ''))];
+        
+        if (campaigns.length > 0) {
+            selectedCampaign = campaigns[0];
+        } else {
+            selectedCampaign = 'Todas';
+        }
+        
+        updateUI();
+        renderRollLogs();
+        
+        // Verifica se há parâmetro de nova rolagem na URL (para comunicação entre abas)
+        const params = new URLSearchParams(window.location.search);
+        const newRoll = params.get('roll');
+        if (newRoll) {
+            try {
+                const rollData = JSON.parse(decodeURIComponent(newRoll));
+                addRollToLog(rollData);
+                // Remove o parâmetro da URL para não adicionar duplicado ao recarregar
+                window.history.replaceState({}, document.title, window.location.pathname);
+            } catch (e) {
+                console.error('Erro ao processar rolagem:', e);
+            }
+        }
+    }
+
+    // Listener para mensagens entre abas (para sincronizar rolagens)
+    window.addEventListener('storage', function(e) {
+        if (e.key === 'apoteose_rolagens' || e.key === 'apoteose_personagens') {
+            loadCharacters();
+            loadRollLogs();
+            updateUI();
+            renderRollLogs();
+        }
+    });
+
+    // Inicia a aplicação
+    init();
+</script>
+</body>
+</html>
