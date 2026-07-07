@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ficha de Personagem - Sistema Divino</title>
+    <title>Ficha de Personagem - Apoteose</title>
     
     <link rel="icon" href="acra.png" type="image/png">
-    
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <link rel="stylesheet" href="css/ficha.css">
-</head>
-<body>
 
+    <!-- ========================================== -->
+    <!-- SIDEBAR -->
+    <!-- ========================================== -->
     <div class="sidebar">
         <button class="portal-btn" onclick="window.location.href='index.html'">
             <i class="ph ph-house"></i> Portal
@@ -22,69 +22,77 @@
         <button class="nav-btn" onclick="showTab('tab-config')"><i class="ph ph-gear"></i></button>
     </div>
 
+    <!-- ========================================== -->
+    <!-- CONTEÚDO PRINCIPAL -->
+    <!-- ========================================== -->
     <div class="main-content">
+
+        <!-- ===== TAB FICHA ===== -->
         <div id="tab-ficha" class="tab-content active">
-            
+
             <div class="card" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px;">
-                <div><label>Nome</label><input type="text" id="i-nome" onchange="saveData('nome', this.value)"></div>
-                <div><label>Classe</label><input type="text" id="i-classe" onchange="saveData('classe', this.value)"></div>
-                
-                <div><label>Nível</label><input type="number" id="i-nivel" min="1" max="200" onchange="updateNivel(this.value)"></div>
+                <div><label>Nome</label><input type="text" id="i-nome" onchange="salvarFicha()"></div>
+                <div><label>Classe</label><input type="text" id="i-classe" onchange="salvarFicha()"></div>
+                <div><label>Nível</label><input type="number" id="i-nivel" min="1" max="200" onchange="atualizarNivel()"></div>
                 <div><label>Grande Nível</label><input type="number" id="i-gnivel" readonly style="background: #333; color: var(--accent-yellow); font-weight: bold;"></div>
-                <div><label>Dom</label><input type="text" id="i-dom" onchange="saveData('dom', this.value)"></div>
+                <div><label>Dom</label><input type="text" id="i-dom" onchange="salvarFicha()"></div>
             </div>
 
             <div class="grid-2">
+                <!-- COLUNA ESQUERDA -->
                 <div>
+                    <!-- Barras Vitais -->
                     <div class="vitals-container">
                         <div class="vital-box vital-pv">
                             <div class="vital-header"><span>PV</span></div>
                             <div class="vital-inputs">
-                                 <input type="number" id="pv-atual" onchange="saveData('pv_atual', this.value)">
+                                <input type="number" id="pv-atual" onchange="salvarFicha()">
                                 <span class="slash">/</span>
-                                <input type="number" id="pv-max" onchange="saveData('pv_max', this.value)">
+                                <input type="number" id="pv-max" onchange="salvarFicha()">
                             </div>
                             <div class="bar-bg"><div id="bar-pv-width" class="bar-fill bar-pv"></div></div>
                         </div>
                         <div class="vital-box vital-ed">
                             <div class="vital-header"><span>ED</span></div>
                             <div class="vital-inputs">
-                                <input type="number" id="ed-atual" onchange="saveData('ed_atual', this.value)">
+                                <input type="number" id="ed-atual" onchange="salvarFicha()">
                                 <span class="slash">/</span>
-                                <input type="number" id="ed-max" onchange="saveData('ed_max', this.value)">
+                                <input type="number" id="ed-max" onchange="salvarFicha()">
                             </div>
-                             <div class="bar-bg"><div id="bar-ed-width" class="bar-fill bar-ed"></div></div>
+                            <div class="bar-bg"><div id="bar-ed-width" class="bar-fill bar-ed"></div></div>
                         </div>
                         <div class="vital-box vital-eh">
                             <div class="vital-header"><span>EH</span></div>
                             <div class="vital-inputs">
-                                <input type="number" id="eh-atual" onchange="saveData('eh_atual', this.value)">
+                                <input type="number" id="eh-atual" onchange="salvarFicha()">
                                 <span class="slash">/</span>
-                                <input type="number" id="eh-max" onchange="saveData('eh_max', this.value)">
+                                <input type="number" id="eh-max" onchange="salvarFicha()">
                             </div>
                             <div class="bar-bg"><div id="bar-eh-width" class="bar-fill bar-eh"></div></div>
                         </div>
                     </div>
 
+                    <!-- Defesa -->
                     <div class="card" style="padding: 0; overflow: hidden;">
                         <div class="defense-grid">
                             <div class="def-cell title">VIGOR</div>
-                            <div class="def-cell"><input type="number" id="vig-atual" placeholder="At." onchange="saveData('vig_atual', this.value)"></div>
-                            <div class="def-cell"><input type="number" id="vig-esquivas" placeholder="Esq." onchange="saveData('vig_esquivas', this.value)"></div>
+                            <div class="def-cell"><input type="number" id="vig-atual" placeholder="At." onchange="salvarFicha()"></div>
+                            <div class="def-cell"><input type="number" id="vig-esquivas" placeholder="Esq." onchange="salvarFicha()"></div>
                             <div class="def-cell title">POSTURA</div>
-                            <div class="def-cell"><input type="number" id="pos-grande" placeholder="G." onchange="saveData('pos_grande', this.value)"></div>
-                            <div class="def-cell"><input type="number" id="pos-pequena" placeholder="P." onchange="saveData('pos_pequena', this.value)"></div>
+                            <div class="def-cell"><input type="number" id="pos-grande" placeholder="G." onchange="salvarFicha()"></div>
+                            <div class="def-cell"><input type="number" id="pos-pequena" placeholder="P." onchange="salvarFicha()"></div>
                             <div class="def-cell def-big" style="grid-row: span 7; background: #333;"><span id="total-esquiva">0</span></div>
                             <div class="def-cell title" style="grid-column: span 2; background: #333; color: white;">ESQUIVA</div>
-                            <div class="def-cell title">Natural</div> <div class="def-cell"><input type="number" id="esq-natural" onchange="calcEsquiva()"></div>
-                            <div class="def-cell title">Escudo</div> <div class="def-cell"><input type="number" id="esq-escudo" onchange="calcEsquiva()"></div>
-                            <div class="def-cell title">Armadura</div> <div class="def-cell"><input type="number" id="esq-armadura" onchange="calcEsquiva()"></div>
-                            <div class="def-cell title">Itens</div> <div class="def-cell"><input type="number" id="esq-itens" onchange="calcEsquiva()"></div>
-                            <div class="def-cell title">Técnicas</div> <div class="def-cell"><input type="number" id="esq-tecnicas" onchange="calcEsquiva()"></div>
-                            <div class="def-cell title">Reflexos</div> <div class="def-cell"><input type="number" id="esq-reflexos" onchange="calcEsquiva()"></div>
+                            <div class="def-cell title">Natural</div><div class="def-cell"><input type="number" id="esq-natural" onchange="calcularEsquiva()"></div>
+                            <div class="def-cell title">Escudo</div><div class="def-cell"><input type="number" id="esq-escudo" onchange="calcularEsquiva()"></div>
+                            <div class="def-cell title">Armadura</div><div class="def-cell"><input type="number" id="esq-armadura" onchange="calcularEsquiva()"></div>
+                            <div class="def-cell title">Itens</div><div class="def-cell"><input type="number" id="esq-itens" onchange="calcularEsquiva()"></div>
+                            <div class="def-cell title">Técnicas</div><div class="def-cell"><input type="number" id="esq-tecnicas" onchange="calcularEsquiva()"></div>
+                            <div class="def-cell title">Reflexos</div><div class="def-cell"><input type="number" id="esq-reflexos" onchange="calcularEsquiva()"></div>
                         </div>
                     </div>
 
+                    <!-- Atributos -->
                     <div class="card">
                         <h2>Atributos Principais</h2>
                         <div id="main-attrs-container"></div>
@@ -92,50 +100,43 @@
                         <div id="spec-attrs-container"></div>
                     </div>
 
-                    <div class="quick-access-container">
-                        <div class="card">
-                            <h2>Acesso Rápido - Itens</h2>
-                            <div id="quick-access-items" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;"></div>
-                        </div>
+                    <!-- Acesso Rápido -->
+                    <div class="card">
+                        <h2>Acesso Rápido - Itens</h2>
+                        <div id="quick-access-items" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;"></div>
                     </div>
                 </div>
 
+                <!-- COLUNA DIREITA -->
                 <div>
+                    <!-- Divindade -->
                     <div class="divinity-bar-wrap" style="margin: 20px 0; background: #111; padding: 10px; border-radius: 8px;">
                         <div style="display: flex; width: 100%; height: 12px; background: #333; border-radius: 10px; overflow: hidden;">
                             <div id="humanity-bar" style="height: 100%; width: 50%; background: var(--accent-purple); transition: width 0.3s;"></div>
                             <div id="divinity-bar" style="height: 100%; width: 50%; background: var(--accent-yellow); transition: width 0.3s;"></div>
                         </div>
-                        <input type="range" min="0" max="100" value="50" class="divinity-slider" id="div-slider" 
-                               oninput="updateDivinity(this.value)" onchange="saveData('divinity_val', this.value)"
-                               style="position: relative; margin-top: -12px; opacity: 0.7;">
+                        <input type="range" min="0" max="100" value="50" class="divinity-slider" id="div-slider" oninput="atualizarDivindade(this.value)" onchange="salvarFicha()">
                         <div style="display: flex; justify-content: space-between; font-weight: bold; margin-top: 5px; font-size: 0.85rem;">
                             <span style="color: var(--accent-purple)">Humanidade <span id="val-hum">50%</span></span>
                             <span style="color: var(--accent-yellow)">Divindade <span id="val-div">50%</span></span>
                         </div>
                     </div>
 
+                    <!-- Lembranças -->
                     <div style="background: var(--bg-card); border: 2px solid var(--accent-purple); border-radius: 10px; padding: 15px; margin-bottom: 20px;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                            <span style="font-weight: bold; color: var(--accent-purple); font-size: 1rem; text-transform: uppercase;">
-                                LEMBRANÇAS
-                            </span>
+                            <span style="font-weight: bold; color: var(--accent-purple); font-size: 1rem; text-transform: uppercase;">LEMBRANÇAS</span>
                             <span style="font-size: 0.85rem; color: var(--text-dim);">Pontos Totais</span>
                         </div>
                         <div style="display: flex; align-items: center; gap: 15px;">
-                            <input type="number" id="lembrancas" value="0" min="0" max="999999"
-                                   onchange="saveData('lembrancas', this.value)"
-                                   style="width: 150px; text-align: center; font-size: 1.8rem; font-weight: bold; 
-                                          background: var(--bg-input); border: 2px solid var(--accent-purple); color: white; padding: 12px; 
-                                          border-radius: 6px;">
+                            <input type="number" id="lembrancas" value="0" min="0" max="999999" onchange="salvarFicha()" style="width: 150px; text-align: center; font-size: 1.8rem; font-weight: bold; background: var(--bg-input); border: 2px solid var(--accent-purple); color: white; padding: 12px; border-radius: 6px;">
                             <div style="flex: 1;">
-                                <div style="font-size: 0.85rem; color: var(--text-dim);">
-                                    Pontos de lembrança acumulados
-                                </div>
+                                <div style="font-size: 0.85rem; color: var(--text-dim);">Pontos de lembrança acumulados</div>
                             </div>
                         </div>
                     </div>
 
+                    <!-- Perícias -->
                     <div class="card">
                         <h2>Perícias</h2>
                         <div id="skills-grid-container"></div>
@@ -144,6 +145,7 @@
             </div>
         </div>
 
+        <!-- ===== TAB INVENTÁRIO ===== -->
         <div id="tab-inv" class="tab-content">
             <div class="grid-2">
                 <div>
@@ -154,18 +156,17 @@
                                 <label>Carga Atual / Máxima (0%)</label>
                                 <div style="display: flex; gap: 10px; align-items: center; margin-top: 5px;">
                                     <span id="w-curr" style="color: white">0</span>
-                                    / <input type="number" id="w-max" value="20" style="width: 60px;" onchange="saveData('carga_max', this.value); renderInventory()">
+                                    / <input type="number" id="w-max" value="20" style="width: 60px;" onchange="salvarFicha(); renderizarInventario()">
                                 </div>
                                 <div style="height: 4px; background: #333; border-radius: 2px; margin-top: 8px; overflow: hidden;">
                                     <div id="carga-bar" style="height: 100%; width: 0%; background: var(--accent-purple);"></div>
                                 </div>
                             </div>
                         </div>
-                        <button onclick="addItem()" style="background: var(--accent-purple); color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; margin-bottom: 15px;">+ Novo Item</button>
+                        <button onclick="adicionarItem()" style="background: var(--accent-purple); color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; margin-bottom: 15px;">+ Novo Item</button>
                         <div id="inventory-list" style="max-height: 500px; overflow-y: auto; padding-right: 5px;"></div>
                     </div>
                 </div>
-                
                 <div>
                     <div class="card">
                         <h2>Resistências e Vulnerabilidades</h2>
@@ -174,28 +175,25 @@
                                 <div style="padding: 10px; font-weight: bold; background: #222; text-align: center;">Tipo</div>
                                 <div style="padding: 10px; font-weight: bold; background: #222; text-align: center;">Efeito</div>
                             </div>
-                            <div id="resistencia-rows" style="max-height: 400px; overflow-y: auto;">
-                                </div>
-                            <button onclick="addResistenciaRow()" style="width: 100%; padding: 10px; background: var(--accent-purple); color: white; border: none; cursor: pointer; font-weight: bold;">
+                            <div id="resistencia-rows" style="max-height: 400px; overflow-y: auto;"></div>
+                            <button onclick="adicionarResistencia()" style="width: 100%; padding: 10px; background: var(--accent-purple); color: white; border: none; cursor: pointer; font-weight: bold;">
                                 <i class="ph ph-plus"></i> Adicionar Resistência
                             </button>
                         </div>
-                        
                         <h3 style="margin-top: 25px;">Anotações Gerais</h3>
-                        <textarea id="anotacoes" rows="6" onchange="saveData('anotacoes', this.value)" 
-                                  style="width: 100%; margin-top: 10px;" 
-                                  placeholder="Anotações, condições, efeitos especiais..."></textarea>
+                        <textarea id="anotacoes" rows="6" onchange="salvarFicha()" style="width: 100%; margin-top: 10px;" placeholder="Anotações, condições, efeitos especiais..."></textarea>
                     </div>
                 </div>
             </div>
         </div>
 
+        <!-- ===== TAB HABILIDADES ===== -->
         <div id="tab-hab" class="tab-content">
             <div class="grid-2">
                 <div>
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                         <h2 style="margin: 0;">Habilidades Passivas</h2>
-                        <button onclick="addHabilidadePassiva()" style="background: var(--skill-green); color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer;">
+                        <button onclick="adicionarPassiva()" style="background: var(--accent-green); color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer;">
                             <i class="ph ph-plus"></i> Nova Passiva
                         </button>
                     </div>
@@ -204,7 +202,7 @@
                 <div>
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                         <h2 style="margin: 0;">Poderes Ativos</h2>
-                        <button onclick="addHabilidadeAtiva()" style="background: var(--skill-blue); color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer;">
+                        <button onclick="adicionarAtiva()" style="background: var(--accent-blue); color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer;">
                             <i class="ph ph-plus"></i> Novo Ativo
                         </button>
                     </div>
@@ -213,27 +211,34 @@
             </div>
         </div>
 
+        <!-- ===== TAB CONFIG ===== -->
         <div id="tab-config" class="tab-content">
             <div class="card">
                 <h2>Configurações da Ficha</h2>
                 <label>URL da Imagem de Perfil</label>
-                <input type="text" id="i-img" onchange="saveData('img', this.value)">
+                <input type="text" id="i-img" onchange="salvarFicha()">
                 <img id="preview-img" src="" style="width: 120px; height: 120px; object-fit: cover; border-radius: 50%; margin-top: 15px; border: 3px solid var(--accent-purple); display: block;">
                 <div class="config-item" style="margin-top: 15px;">
-                    <label><i class="ph ph-lock"></i> Senha da Ficha (para o Portal)</label>
-                    <input type="password" id="input-senha" placeholder="Defina uma senha" onchange="updateSenha(this.value)">
+                    <label><i class="ph ph-lock"></i> Senha da Ficha</label>
+                    <input type="password" id="input-senha" placeholder="Defina uma senha" onchange="salvarFicha()">
                 </div>
+                <button onclick="salvarFicha()" style="margin-top: 15px; background: var(--accent-purple); color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                    <i class="ph ph-floppy-disk"></i> Salvar Ficha
+                </button>
             </div>
         </div>
     </div>
 
+    <!-- ========================================== -->
+    <!-- ROLL RESULT -->
+    <!-- ========================================== -->
     <div id="roll-result" class="roll-result" style="display: none;">
         <h3>
             <span>Resultado da Rolagem</span>
             <button class="close-btn" onclick="document.getElementById('roll-result').style.display='none'"><i class="ph ph-x"></i></button>
         </h3>
         <div style="display: flex; align-items: center; justify-content: center;">
-            <i class="ph ph-dice-six roll-dice"></i>
+            <i class="ph ph-dice-six roll-dice" style="font-size:1.5rem; color:var(--accent-yellow); margin-right:10px;"></i>
             <div>
                 <div id="roll-description" style="font-size: 1rem; color: #aaa;"></div>
                 <div id="roll-total" class="roll-total">0</div>
@@ -241,18 +246,14 @@
         </div>
         <div id="dice-rolls" class="dice-rolls"></div>
         <div id="roll-details" class="roll-details"></div>
-        <div id="damage-result" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #333; display: none;">
-            <div style="font-size: 0.9rem; color: #aaa;">Dano:</div>
-            <div id="damage-total" class="roll-total" style="font-size: 2rem; color: var(--accent-red);">0</div>
-            <div id="damage-details" style="font-size: 0.9rem; color: #aaa;"></div>
-        </div>
     </div>
 
-    <audio id="dice-sound" preload="auto">
-        <source src="dados.mp3" type="audio/mpeg">
-        Seu navegador não suporta o elemento de áudio.
-    </audio>
-
-    <script src="js/ficha.js></script>
+    <!-- ========================================== -->
+    <!-- TOAST -->
+    <!-- ========================================== -->
+    <div id="toast" class="toast">
+        <span id="toast-mensagem">Mensagem</span>
+    </div>
+    <script src="js/ficha.js"></script>
 </body>
 </html>
