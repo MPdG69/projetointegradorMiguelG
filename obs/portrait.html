@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OBS Portrait - Apoteose</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            background: transparent; 
+            font-family: 'Segoe UI', sans-serif; 
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        .portrait-card {
+            width: 320px;
+            background: rgba(10, 10, 15, 0.92);
+            border: 2px solid #9d4edd;
+            border-radius: 16px;
+            padding: 16px 20px;
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+            transition: all 0.3s ease;
+        }
+        
+        .avatar {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #ffcc00;
+            flex-shrink: 0;
+            background: #222;
+        }
+        
+        .info {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .name {
+            font-weight: bold;
+            font-size: 1.1rem;
+            color: #ffcc00;
+            margin-bottom: 8px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .stat-group {
+            margin-bottom: 4px;
+        }
+        .stat-group:last-child { margin-bottom: 0; }
+        
+        .stat-text {
+            font-size: 0.7rem;
+            color: #aaa;
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2px;
+        }
+        .stat-text .stat-label {
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .stat-text .stat-value {
+            font-weight: bold;
+            color: #fff;
+        }
+        
+        .bar {
+            height: 6px;
+            border-radius: 3px;
+            background: #1a1a1a;
+            overflow: hidden;
+            border: 1px solid #2a2a2a;
+        }
+        .bar-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.4s ease;
+        }
+        .bar-pv { background: #ff4d4d; }
+        .bar-ed { background: #ffcc00; }
+        .bar-eh { background: #9d4edd; }
+        
+        .classe-level {
+            font-size: 0.65rem;
+            color: #666;
+            margin-top: 4px;
+        }
+        
+        /* Modo compacto para OBS */
+        .portrait-card.compact {
+            padding: 10px 14px;
+            gap: 10px;
+        }
+        .portrait-card.compact .avatar {
+            width: 50px;
+            height: 50px;
+        }
+        .portrait-card.compact .name {
+            font-size: 0.9rem;
+            margin-bottom: 4px;
+        }
+        .portrait-card.compact .stat-text {
+            font-size: 0.6rem;
+        }
+        .portrait-card.compact .bar {
+            height: 4px;
+        }
+        
+        @media (max-width: 400px) {
+            .portrait-card {
+                width: 260px;
+                padding: 12px 14px;
+            }
+            .portrait-card .avatar {
+                width: 54px;
+                height: 54px;
+            }
+            .portrait-card .name {
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="portrait-card" id="portrait">
+        <img id="p-img" class="avatar" src="" onerror="this.style.display='none'">
+        <div class="info">
+            <div id="p-nome" class="name">Carregando...</div>
+            <div id="p-classe" class="classe-level"></div>
+            
+            <div class="stat-group">
+                <div class="stat-text">
+                    <span class="stat-label">PV</span>
+                    <span class="stat-value" id="p-pv-val">0/0</span>
+                </div>
+                <div class="bar"><div id="p-pv-bar" class="bar-fill bar-pv" style="width:0%"></div></div>
+            </div>
+            
+            <div class="stat-group">
+                <div class="stat-text">
+                    <span class="stat-label">ED</span>
+                    <span class="stat-value" id="p-ed-val">0/0</span>
+                </div>
+                <div class="bar"><div id="p-ed-bar" class="bar-fill bar-ed" style="width:0%"></div></div>
+            </div>
+            
+            <div class="stat-group">
+                <div class="stat-text">
+                    <span class="stat-label">EH</span>
+                    <span class="stat-value" id="p-eh-val">0/0</span>
+                </div>
+                <div class="bar"><div id="p-eh-bar" class="bar-fill bar-eh" style="width:0%"></div></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            const params = new URLSearchParams(window.location.search);
+            const charId = params.get('id');
+            
+            // Suporte para modo compacto via parâmetro
+            const compact = params.get('compact') === 'true';
+            if (compact) {
+                document.getElementById('portrait').classList.add('compact');
+            }
+            
+            let lastData = null;
+            
+            function atualizar() {
+                try {
+                    // Buscar dados do personagem
+                    const pData = localStorage.getItem('apoteose_personagens');
+                    if (!pData) return;
+                    
+                    const personagens = JSON.parse(pData);
+                    const p = personagens[charId];
+                    if (!p) {
+                        document.getElementById('p-nome').textContent = 'Personagem não encontrado';
+                        return;
+                    }
+                    
+                    // Atualizar nome e classe
+                    document.getElementById('p-nome').textContent = p.nome || 'Sem nome';
+                    document.getElementById('p-classe').textContent = `${p.classe || 'Sem classe'} - Nv.${p.nivel || 0}`;
+                    
+                    // Atualizar imagem
+                    const img = document.getElementById('p-img');
+                    if (p.img) {
+                        img.src = p.img;
+                        img.style.display = 'block';
+                    } else {
+                        img.style.display = 'none';
+                    }
+                    
+                    // Atualizar barras
+                    const updateBar = (idVal, idBar, cur, max, label) => {
+                        const c = parseInt(cur) || 0;
+                        const m = parseInt(max) || 1;
+                        const pct = Math.min(100, Math.max(0, (c / m) * 100));
+                        document.getElementById(idVal).textContent = `${c}/${m}`;
+                        document.getElementById(idBar).style.width = pct + '%';
+                    };
+                    
+                    updateBar('p-pv-val', 'p-pv-bar', p.pv_atual, p.pv_max);
+                    updateBar('p-ed-val', 'p-ed-bar', p.ed_atual, p.ed_max);
+                    updateBar('p-eh-val', 'p-eh-bar', p.eh_atual, p.eh_max);
+                    
+                    lastData = p;
+                } catch (e) {
+                    console.error('Erro no portrait:', e);
+                }
+            }
+            
+            // Atualizar imediatamente
+            atualizar();
+            
+            // Atualizar em intervalos e quando o storage mudar
+            window.addEventListener('storage', (e) => {
+                if (e.key === 'apoteose_personagens') atualizar();
+            });
+            
+            // Também atualizar via polling para sincronia entre abas
+            setInterval(atualizar, 1000);
+        })();
+    </script>
+</body>
+</html>

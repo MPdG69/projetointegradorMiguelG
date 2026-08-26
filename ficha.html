@@ -224,6 +224,23 @@
                 </div>
                 <button onclick="salvarFicha()" style="margin-top: 15px; background: var(--accent-purple); color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: bold;">
                     <i class="ph ph-floppy-disk"></i> Salvar Ficha
+
+                    <div class="card" style="margin-top: 15px;">
+    <h2><i class="ph ph-broadcast"></i> Link para OBS (Overlay)</h2>
+    <p style="font-size:0.8rem; color:var(--text-dim); margin-bottom:10px;">
+        Use este link no OBS como Browser Source para exibir o portrait do personagem.
+        O overlay mostra nome, foto, PV, ED e EH em tempo real.
+    </p>
+    <div style="display:flex; gap:10px;">
+        <input type="text" id="obs-link-input" readonly style="flex:1; background:var(--bg-input); color:white; border:1px solid var(--border); border-radius:4px; padding:8px;">
+        <button onclick="copiarLinkOBS()" style="background:var(--accent-blue); color:white; border:none; padding:8px 15px; border-radius:4px; cursor:pointer;">
+            <i class="ph ph-copy"></i> Copiar Link
+        </button>
+    </div>
+    <div style="margin-top:10px; font-size:0.7rem; color:var(--text-dim);">
+        <i class="ph ph-info"></i> Parâmetros opcionais: ?compact=true (modo compacto)
+    </div>
+</div>
                 </button>
             </div>
         </div>

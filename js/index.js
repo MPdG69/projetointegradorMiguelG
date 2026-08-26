@@ -14,8 +14,8 @@ const USUARIOS = {
     },
     normal: {
         id: 'normal',
-        nome: 'João Silva',
-        email: 'joao@email.com',
+        nome: 'Ash 2000',
+        email: 'Lulatron@email.com',
         senha: '123456',
         tipo: 'normal',
         foto: ''
@@ -55,10 +55,10 @@ const PERSONAGEM_MAX = {
     pericias: {},
     inventario: {
         'item1': { nome: 'Poção de Cura', peso: 0.5, tipo: 'item', desc: 'Restaura 2d6+4 PV.' },
-        'item2': { nome: 'Cajado Arcano', peso: 1.0, tipo: 'arma', dano: '1d6+2', teste: '1d20+6', critico: '20/x2', desc: 'Cajado mágico com ponta de cristal.' }
+        'item2': { nome: 'Kapinga', peso: 1.0, tipo: 'arma', dano: '1d6+2', teste: '1d20+6', critico: '20/x2', desc: 'Arma tipica africana, mas com detalhes em arco iris' }
     },
     habilidadesPassivas: [
-        { nome: 'Conhecimento Arcano', categoria: 'Maestria', desc: '+3 em testes de Conhecimento.', expandida: false }
+        { nome: 'Tiros inteligentes', categoria: 'Maestria', desc: 'Atira usando intelecto', expandida: false }
     ],
     habilidadesAtivas: [
         { nome: 'Bola de Fogo', tipo: 'Magia', ativa: true, arcanos: 'Fogo', forma: 'Projétil', funcao: 'Dano', efeito: 'Explosão', duracao: 'Instantâneo', alvos: 'Área', custo: '5 ED', amplificadores: '+1d6', concedido: '', dados: '4d6', dano: '4d6+3', desc: 'Lança uma bola de fogo.', expandida: false }
@@ -74,7 +74,7 @@ const CAMPANHAS = {
     'c_chakal': {
         id: 'c_chakal',
         nome: 'Chakal',
-        desc: 'Uma campanha pública onde Max, o Especialista, explora os mistérios de Chakal.',
+        desc: 'Uma campanha pública onde Max, por enquanto só, sobrevive aos entremeios da chakal',
         img: '',
         privada: false,
         senha: '',
@@ -84,11 +84,11 @@ const CAMPANHAS = {
     },
     'c_privada': {
         id: 'c_privada',
-        nome: 'Reino Proibido',
+        nome: 'Egrégora',
         desc: 'Campanha privada - apenas para demonstração de acesso negado.',
         img: '',
         privada: true,
-        senha: 'secreto123',
+        senha: '123',
         link: 'convite-reino-abc',
         dono: 'admin',
         participantes: []
@@ -106,7 +106,7 @@ let estado = {
     personagens: {},
     campanhaSelecionada: null,
     modalCampanhaId: null,
-    campanhaEditandoId: null  // Para o modal de edição
+    campanhaEditandoId: null
 };
 
 // ============================================
@@ -132,7 +132,6 @@ function init() {
 }
 
 function carregarDados() {
-    // Campanhas
     const campanhasSalvas = localStorage.getItem('apoteose_campanhas');
     if (campanhasSalvas) {
         try { estado.campanhas = JSON.parse(campanhasSalvas); }
@@ -142,7 +141,6 @@ function carregarDados() {
         salvarCampanhas();
     }
     
-    // Personagens - apenas MAX
     const personagensSalvos = localStorage.getItem('apoteose_personagens');
     if (personagensSalvos) {
         try { estado.personagens = JSON.parse(personagensSalvos); }
@@ -152,7 +150,6 @@ function carregarDados() {
         salvarPersonagens();
     }
     
-    // Garante que MAX existe
     if (!estado.personagens['p_max']) {
         estado.personagens['p_max'] = { ...PERSONAGEM_MAX };
         salvarPersonagens();
@@ -310,7 +307,6 @@ function entrarNaSessao() {
     renderizarFiltros();
     renderizarPersonagens();
     renderizarCampanhas();
-    renderizarParty();
     renderizarAdmin();
     switchMainTab('personagens');
 }
@@ -453,8 +449,6 @@ function selecionarCampanha(nome) {
     
     estado.campanhaSelecionada = nome;
     renderizarFiltros();
-    renderizarParty();
-    switchMainTab('party');
 }
 
 // ============================================
@@ -489,8 +483,8 @@ function confirmarSenhaPrivada() {
         fecharModalPrivado();
         estado.campanhaSelecionada = camp.nome;
         renderizarFiltros();
-        renderizarParty();
-        switchMainTab('party');
+        // Navegar para a página da party
+        window.location.href = `party.html?id=${campanhaPrivadaId}`;
         mostrarToast('✅ Acesso concedido à campanha ' + camp.nome + '!', 'success');
     } else {
         document.getElementById('modal-senha-erro').style.display = 'block';
@@ -628,171 +622,19 @@ function renderizarCampanhas() {
 
 function acessarCampanha(id) {
     const camp = estado.campanhas[id];
-    if (!camp) return;
-    
-    estado.campanhaSelecionada = camp.nome;
-    renderizarFiltros();
-    renderizarParty();
-    switchMainTab('party');
-    mostrarToast(`📜 Visualizando campanha: ${camp.nome}`, 'info');
-}
-
-// ============================================
-// PARTY
-// ============================================
-
-function atualizarVisibilidadeNavParty() {
-    const navParty = document.getElementById('nav-party');
-    if (!navParty) return;
-    navParty.style.display = estado.campanhaSelecionada ? 'flex' : 'none';
-}
-
-function renderizarParty() {
-    atualizarVisibilidadeNavParty();
-
-    const container = document.getElementById('gm-body');
-    const nomeDisplay = document.getElementById('party-campanha-nome');
-    
-    if (!estado.campanhaSelecionada) {
-        nomeDisplay.textContent = 'Nenhuma campanha selecionada';
-        container.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-dim); padding:20px;">Selecione uma campanha para ver a party.</td></tr>';
-        // Se a aba Party estava aberta e a campanha foi desselecionada, volta para Personagens
-        const tabPartyAtiva = document.getElementById('tab-party')?.classList.contains('active');
-        if (tabPartyAtiva) switchMainTab('personagens');
-        return;
-    }
-    
-    const camp = Object.values(estado.campanhas).find(c => c.nome === estado.campanhaSelecionada);
     if (!camp) {
-        nomeDisplay.textContent = 'Campanha não encontrada';
-        container.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-dim); padding:20px;">Campanha não encontrada.</td></tr>';
+        mostrarToast('Campanha não encontrada.', 'error');
         return;
     }
     
+    // Se for privada e o usuário não for admin, pedir senha
     if (camp.privada && estado.usuario.tipo !== 'admin') {
-        const user = estado.usuario;
-        if (user.tipo !== 'normal' || !camp.participantes || !camp.participantes.includes(user.id)) {
-            abrirModalPrivado(camp.id);
-            return;
-        }
-    }
-    
-    nomeDisplay.textContent = camp.nome + (camp.privada ? ' 🔒' : '');
-    
-    let personagens = Object.values(estado.personagens)
-        .filter(p => p.campanha === camp.nome);
-    
-    personagens = personagens.filter(p => p.id === 'p_max');
-    
-    if (personagens.length === 0) {
-        container.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-dim); padding:20px;">Nenhum personagem nesta campanha.</td></tr>';
+        abrirModalPrivado(id);
         return;
     }
     
-    const podeAbrirFicha = estado.usuario.tipo === 'admin' || estado.usuario.tipo === 'normal';
-    
-    container.innerHTML = personagens.map(p => {
-        const pvAtual = parseInt(p.pv_atual) || 0;
-        const pvMax = parseInt(p.pv_max) || 1;
-        const edAtual = parseInt(p.ed_atual) || 0;
-        const edMax = parseInt(p.ed_max) || 1;
-        const ehAtual = parseInt(p.eh_atual) || 0;
-        const ehMax = parseInt(p.eh_max) || 1;
-        
-        return `
-            <tr>
-                <td style="text-align:left;">
-                    <strong>${p.nome}</strong>
-                    <br><small style="color:var(--text-dim);">${p.classe} - Nv.${p.nivel}</small>
-                </td>
-                <td>
-                    ${pvAtual}/${pvMax}
-                    <div class="stat-bar"><div class="bar-fill" style="width:${Math.min(100, (pvAtual/pvMax)*100)}%; background:var(--accent-red);"></div></div>
-                </td>
-                <td>
-                    ${edAtual}/${edMax}
-                    <div class="stat-bar"><div class="bar-fill" style="width:${Math.min(100, (edAtual/edMax)*100)}%; background:var(--accent-yellow);"></div></div>
-                </td>
-                <td>
-                    ${ehAtual}/${ehMax}
-                    <div class="stat-bar"><div class="bar-fill" style="width:${Math.min(100, (ehAtual/ehMax)*100)}%; background:var(--accent-purple);"></div></div>
-                </td>
-                <td>
-                    ${podeAbrirFicha ? `
-                        <button onclick="abrirFicha('${p.id}')" style="background:var(--accent-purple); color:white; border:none; padding:4px 12px; border-radius:4px; cursor:pointer; font-size:0.8rem;">
-                            <i class="ph ph-eye"></i> Ficha
-                        </button>
-                    ` : `
-                        <span style="color:var(--text-dim); font-size:0.8rem;">🔒</span>
-                    `}
-                </td>
-            </tr>
-        `;
-    }).join('');
-    
-    renderizarLogs();
-}
-
-function renderizarLogs() {
-    const container = document.getElementById('roll-log');
-    const logs = carregarLogs();
-    
-    if (logs.length === 0) {
-        container.innerHTML = '<p style="color: #666; font-size: 0.8rem;">Aguardando dados...</p>';
-        return;
-    }
-    
-    container.innerHTML = '';
-    const logsToShow = logs.slice(-20).reverse();
-    
-    logsToShow.forEach(log => {
-        const rollItem = document.createElement('div');
-        rollItem.className = 'roll-item';
-        
-        const nomePersonagem = log.personagem || "Personagem";
-        const tipoRolagem = log.tipo || "Rolagem";
-        const nomeRolagem = log.nome || tipoRolagem;
-        const resultado = log.resultado || log.valor || "0";
-        
-        let displayTipo = nomeRolagem;
-        let displayResultado = resultado;
-        
-        if (tipoRolagem === 'ataque_arma') {
-            displayResultado = `ATQ: ${log.ataque || resultado} | DANO: ${log.dano || '0'}`;
-        } else if (tipoRolagem === 'pericia' && log.detalhes) {
-            displayResultado = `${resultado} (${log.detalhes.join(', ')})`;
-        }
-        
-        let corBorda = '#9d4edd';
-        if (tipoRolagem === 'ataque_arma') corBorda = '#ff4d4d';
-        else if (tipoRolagem === 'pericia') corBorda = '#4dff88';
-        else if (tipoRolagem?.toLowerCase().includes('teste')) corBorda = '#ffcc00';
-        
-        rollItem.style.borderLeft = `4px solid ${corBorda}`;
-        
-        rollItem.innerHTML = `
-            <div style="display:flex; flex-direction:column; width:100%;">
-                <div style="font-size:0.75rem; color:#ffcc00; font-weight:bold; text-transform:uppercase; margin-bottom:2px;">
-                    ${nomePersonagem}
-                </div>
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <span style="font-size:0.8rem; color:#aaa;">${displayTipo}</span>
-                    <span style="font-size:1rem; font-weight:bold; color:#fff;">${displayResultado}</span>
-                </div>
-                ${log.critico ? '<div style="font-size:0.7rem; background:rgba(255,77,77,0.2); color:#ff4d4d; font-weight:bold; padding:2px 6px; border-radius:3px; text-align:center; margin-top:2px;">CRÍTICO!</div>' : ''}
-            </div>
-        `;
-        container.appendChild(rollItem);
-    });
-}
-
-function carregarLogs() {
-    try {
-        const data = localStorage.getItem('apoteose_rolagens');
-        return data ? JSON.parse(data) : [];
-    } catch (e) {
-        return [];
-    }
+    // Navegar para a página da party
+    window.location.href = `party.html?id=${id}`;
 }
 
 // ============================================
@@ -810,43 +652,122 @@ function renderizarAdmin() {
                 <p>Apenas administradores podem acessar esta área.</p>
             </div>
         `;
+        document.getElementById('lista-usuarios-admin').innerHTML = '';
         return;
     }
     
+    // Renderizar campanhas
     const campanhas = Object.values(estado.campanhas);
     
     if (campanhas.length === 0) {
         container.innerHTML = `
-            <div style="text-align:center; color:var(--text-dim); padding:40px;">
-                <p>Nenhuma campanha cadastrada.</p>
+            <div style="text-align:center; color:var(--text-dim); padding:20px;">
+                Nenhuma campanha cadastrada.
+            </div>
+        `;
+    } else {
+        container.innerHTML = campanhas.map(c => `
+            <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:15px 20px; display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; transition:0.3s; flex-wrap:wrap; gap:10px;">
+                <div style="display:flex; align-items:center; gap:15px; flex-wrap:wrap;">
+                    <img src="${c.img || ''}" onerror="this.src=''" style="width:50px; height:50px; border-radius:8px; object-fit:cover;">
+                    <div>
+                        <div style="font-weight:bold;">${c.nome}</div>
+                        <div style="font-size:0.8rem; color:var(--text-dim);">
+                            ${c.privada ? '🔒 Privada' : '🌍 Pública'}
+                            ${c.senha ? ' | Senha: ' + '•'.repeat(c.senha.length) : ''}
+                            ${c.participantes ? ' | ' + c.participantes.length + ' participantes' : ''}
+                        </div>
+                    </div>
+                </div>
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <button onclick="abrirModalCampanha('${c.id}')" style="background:none; border:none; color:var(--accent-yellow); cursor:pointer; padding:6px 10px; border-radius:4px; transition:0.3s;">
+                        <i class="ph ph-pencil"></i> Editar
+                    </button>
+                    <button onclick="window.location.href='party.html?id=${c.id}'" style="background:none; border:none; color:var(--accent-purple); cursor:pointer; padding:6px 10px; border-radius:4px; transition:0.3s;">
+                        <i class="ph ph-eye"></i> Party
+                    </button>
+                </div>
+            </div>
+        `).join('');
+    }
+    
+    // Renderizar usuários
+    renderizarUsuariosAdmin();
+}
+
+// ============================================
+// GERENCIAMENTO DE USUÁRIOS (ADMIN)
+// ============================================
+
+function renderizarUsuariosAdmin() {
+    const container = document.getElementById('lista-usuarios-admin');
+    if (!container || estado.usuario?.tipo !== 'admin') {
+        if (container) container.innerHTML = '';
+        return;
+    }
+
+    const lista = Object.values(USUARIOS);
+
+    if (lista.length === 0) {
+        container.innerHTML = `
+            <div style="text-align:center; color:var(--text-dim); padding:20px;">
+                Nenhum usuário cadastrado.
             </div>
         `;
         return;
     }
-    
-    container.innerHTML = campanhas.map(c => `
-        <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:15px 20px; display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; transition:0.3s;">
-            <div style="display:flex; align-items:center; gap:15px; flex-wrap:wrap;">
-                <img src="${c.img || ''}" onerror="this.src=''" style="width:50px; height:50px; border-radius:8px; object-fit:cover;">
-                <div>
-                    <div style="font-weight:bold;">${c.nome}</div>
-                    <div style="font-size:0.8rem; color:var(--text-dim);">
-                        ${c.privada ? '🔒 Privada' : '🌍 Pública'}
-                        ${c.senha ? ' | Senha: ' + c.senha : ''}
-                        ${c.participantes ? ' | ' + c.participantes.length + ' participantes' : ''}
-                    </div>
+
+    container.innerHTML = lista.map(u => {
+        const isAdmin = u.tipo === 'admin';
+        const isSelf = u.id === estado.usuario?.id;
+        
+        return `
+            <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:12px 20px; display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:10px;">
+                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                    <strong>${u.nome}</strong>
+                    <span style="color:var(--text-dim); font-size:0.8rem;">${u.email}</span>
+                    <span style="font-size:0.65rem; padding:2px 10px; border-radius:12px; background:${isAdmin ? 'var(--accent-purple)' : 'var(--accent-green)'}; color:white;">
+                        ${u.tipo.toUpperCase()}
+                    </span>
+                </div>
+                <div style="display:flex; gap:8px;">
+                    ${!isAdmin ? `
+                        <button class="btn-primary" onclick="promoverUsuarioAdmin('${u.id}')" style="padding:4px 12px; font-size:0.8rem;">
+                            <i class="ph ph-shield-plus"></i> Tornar Admin
+                        </button>
+                    ` : `
+                        ${!isSelf ? `
+                            <button class="btn-secondary" onclick="rebaixarUsuarioAdmin('${u.id}')" style="padding:4px 12px; font-size:0.8rem;">
+                                <i class="ph ph-user"></i> Remover Admin
+                            </button>
+                        ` : `
+                            <span style="color:var(--text-dim); font-size:0.7rem;">(Você)</span>
+                        `}
+                    `}
                 </div>
             </div>
-            <div style="display:flex; gap:8px;">
-                <button onclick="abrirModalCampanha('${c.id}')" style="background:none; border:none; color:var(--accent-yellow); cursor:pointer; padding:6px 10px; border-radius:4px; transition:0.3s;">
-                    <i class="ph ph-pencil"></i> Editar
-                </button>
-                <button onclick="estado.campanhaSelecionada='${c.nome}'; renderizarFiltros(); renderizarParty(); switchMainTab('party');" style="background:none; border:none; color:var(--accent-purple); cursor:pointer; padding:6px 10px; border-radius:4px; transition:0.3s;">
-                    <i class="ph ph-eye"></i> Party
-                </button>
-            </div>
-        </div>
-    `).join('');
+        `;
+    }).join('');
+}
+
+function promoverUsuarioAdmin(userId) {
+    if (USUARIOS[userId]) {
+        USUARIOS[userId].tipo = 'admin';
+        mostrarToast(`✅ Usuário ${USUARIOS[userId].nome} agora é Administrador!`, 'success');
+        renderizarUsuariosAdmin();
+    }
+}
+
+function rebaixarUsuarioAdmin(userId) {
+    if (userId === estado.usuario.id) {
+        mostrarToast('⚠️ Você não pode remover seu próprio acesso Admin!', 'error');
+        return;
+    }
+    if (USUARIOS[userId]) {
+        USUARIOS[userId].tipo = 'normal';
+        mostrarToast(`ℹ️ Permissão Admin removida de ${USUARIOS[userId].nome}.`, 'info');
+        renderizarUsuariosAdmin();
+    }
 }
 
 // ============================================
@@ -941,7 +862,6 @@ function salvarCampanha() {
     renderizarCampanhas();
     renderizarFiltros();
     renderizarAdmin();
-    renderizarParty();
     mostrarToast('✅ Campanha salva com sucesso!', 'success');
 }
 
@@ -959,7 +879,6 @@ function apagarCampanha() {
     renderizarCampanhas();
     renderizarFiltros();
     renderizarAdmin();
-    renderizarParty();
     mostrarToast('🗑️ Campanha apagada.', 'info');
 }
 
@@ -987,7 +906,6 @@ window.addEventListener('storage', function(e) {
             renderizarPersonagens();
             renderizarCampanhas();
             renderizarFiltros();
-            renderizarParty();
             renderizarAdmin();
         }
     }

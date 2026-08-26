@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Party - Apoteose</title>
+    <link rel="icon" href="acra.png" type="image/png">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="stylesheet" href="css/index.css">
+    <style>
+        /* Estilos específicos da página party */
+        .party-page {
+            min-height: 100vh;
+            background: var(--bg-deep);
+        }
+        
+        .party-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 30px;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .party-header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .party-header-left h2 {
+            color: var(--accent-yellow);
+            font-size: 1.2rem;
+            letter-spacing: 1px;
+        }
+        
+        .party-header-right {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .party-content {
+            padding: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .party-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .party-members-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            overflow: hidden;
+        }
+        
+        .party-logs-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            height: fit-content;
+            max-height: 600px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .section-title {
+            color: var(--accent-purple);
+            font-size: 1rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .member-card {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 12px 15px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            border-left: 3px solid var(--accent-purple);
+            transition: 0.3s;
+        }
+        .member-card:hover {
+            background: rgba(255,255,255,0.06);
+        }
+        
+        .member-card .avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--accent-yellow);
+            flex-shrink: 0;
+            background: #222;
+        }
+        
+        .member-card .info {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .member-card .info .name {
+            font-weight: bold;
+            color: #fff;
+        }
+        .member-card .info .class {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+        }
+        
+        .member-card .stats {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .member-card .stat-item {
+            min-width: 60px;
+        }
+        .member-card .stat-item .stat-label {
+            font-size: 0.6rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+        }
+        .member-card .stat-item .stat-value {
+            font-size: 0.85rem;
+            font-weight: bold;
+        }
+        .member-card .stat-item .stat-bar {
+            height: 4px;
+            background: #1a1a1a;
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 2px;
+        }
+        .member-card .stat-item .stat-bar .fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.3s;
+        }
+        .stat-pv .fill { background: var(--accent-red); }
+        .stat-ed .fill { background: var(--accent-yellow); }
+        .stat-eh .fill { background: var(--accent-purple); }
+        
+        .member-card .actions {
+            flex-shrink: 0;
+        }
+        
+        .member-card .actions button {
+            background: var(--accent-purple);
+            color: white;
+            border: none;
+            padding: 5px 12px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .member-card .actions button:hover {
+            opacity: 0.8;
+            transform: scale(1.02);
+        }
+        
+        .roll-log-container {
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+        
+        .roll-log-container .roll-item {
+            padding: 8px 12px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 4px;
+            margin-bottom: 4px;
+            border-left: 3px solid var(--accent-yellow);
+        }
+        .roll-log-container .roll-item .roll-personagem {
+            font-weight: bold;
+            font-size: 0.75rem;
+            color: var(--accent-yellow);
+        }
+        .roll-log-container .roll-item .roll-nome {
+            font-size: 0.8rem;
+            color: #aaa;
+        }
+        .roll-log-container .roll-item .roll-resultado {
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: #fff;
+        }
+        .roll-log-container .roll-item .roll-time {
+            font-size: 0.6rem;
+            color: #555;
+        }
+        .roll-log-container .roll-item.critico {
+            border-left-color: var(--accent-red);
+            background: rgba(255, 77, 77, 0.05);
+        }
+        .roll-log-container .roll-item.critico .roll-resultado {
+            color: var(--accent-red);
+        }
+        
+        .empty-state {
+            text-align: center;
+            color: var(--text-dim);
+            padding: 30px 20px;
+        }
+        .empty-state i {
+            font-size: 2.5rem;
+            display: block;
+            margin-bottom: 10px;
+            opacity: 0.5;
+        }
+        
+        /* Toast inline para party.html */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-card);
+            border: 1px solid var(--accent-purple);
+            border-radius: 8px;
+            padding: 12px 24px;
+            z-index: 2000;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            animation: slideInToast 0.4s ease;
+            display: none;
+        }
+        .toast.success { border-color: var(--accent-green); }
+        .toast.error { border-color: var(--accent-red); }
+        .toast.info { border-color: var(--accent-yellow); }
+        @keyframes slideInToast {
+            from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+            to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+        
+        /* Responsivo */
+        @media (max-width: 768px) {
+            .party-grid {
+                grid-template-columns: 1fr;
+            }
+            .party-header {
+                flex-direction: column;
+                align-items: stretch;
+                padding: 10px 15px;
+            }
+            .party-header-left, .party-header-right {
+                justify-content: center;
+            }
+            .party-content {
+                padding: 15px;
+            }
+            .member-card {
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+            .member-card .stats {
+                flex: 1;
+                min-width: 100%;
+            }
+            .member-card .actions {
+                width: 100%;
+                text-align: right;
+            }
+            .party-logs-section {
+                max-height: 400px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .member-card .avatar {
+                width: 40px;
+                height: 40px;
+            }
+            .member-card .info .name {
+                font-size: 0.85rem;
+            }
+            .member-card .stat-item .stat-value {
+                font-size: 0.75rem;
+            }
+            .party-header-left h2 {
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="party-page">
+        <!-- Header -->
+        <header class="party-header">
+            <div class="party-header-left">
+                <button class="btn-secondary" onclick="window.location.href='index.html'">
+                    <i class="ph ph-arrow-left"></i> Voltar
+                </button>
+                <h2 id="campanha-titulo">Carregando...</h2>
+                <span id="campanha-status" class="badge-normal" style="font-size:0.6rem;">Pública</span>
+            </div>
+            <div class="party-header-right">
+                <button class="btn-primary" onclick="copiarLinkPartyOBS()">
+                    <i class="ph ph-broadcast"></i> Link OBS
+                </button>
+                <button class="btn-secondary" onclick="atualizarParty()">
+                    <i class="ph ph-arrows-clockwise"></i>
+                </button>
+            </div>
+        </header>
+        
+        <!-- Conteúdo -->
+        <div class="party-content">
+            <div class="party-grid">
+                <!-- Membros -->
+                <div class="party-members-section">
+                    <div class="section-title">
+                        <i class="ph ph-users"></i> Membros da Party
+                    </div>
+                    <div id="party-members-list">
+                        <div class="empty-state">
+                            <i class="ph ph-spinner-gap"></i>
+                            Carregando membros...
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Logs -->
+                <div class="party-logs-section">
+                    <div class="section-title">
+                        <i class="ph ph-dice-six"></i> Rolagens em Tempo Real
+                        <span style="font-size:0.6rem; color:var(--text-dim); font-weight:normal; margin-left:auto;">
+                            <span id="log-count">0</span> registros
+                        </span>
+                    </div>
+                    <div id="roll-log" class="roll-log-container">
+                        <div class="empty-state">
+                            <i class="ph ph-dice"></i>
+                            Aguardando rolagens...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Toast -->
+    <div id="toast" class="toast">
+        <span id="toast-mensagem">Mensagem</span>
+    </div>
+
+    <script>
+        // ============================================
+        // PARTY LOGIC
+        // ============================================
+        
+        const params = new URLSearchParams(window.location.search);
+        const campId = params.get('id');
+        let updateInterval = null;
+        
+        function obterCampanha() {
+            try {
+                const data = JSON.parse(localStorage.getItem('apoteose_campanhas') || '{}');
+                return data[campId];
+            } catch (e) { return null; }
+        }
+        
+        function obterPersonagens() {
+            try {
+                return JSON.parse(localStorage.getItem('apoteose_personagens') || '{}');
+            } catch (e) { return {}; }
+        }
+        
+        function obterLogs() {
+            try {
+                return JSON.parse(localStorage.getItem('apoteose_rolagens') || '[]');
+            } catch (e) { return []; }
+        }
+        
+        function formatarHora(timestamp) {
+            const d = new Date(timestamp);
+            return d.toLocaleTimeString('pt-BR');
+        }
+        
+        function carregarParty() {
+            const camp = obterCampanha();
+            const titulo = document.getElementById('campanha-titulo');
+            const status = document.getElementById('campanha-status');
+            
+            if (!camp) {
+                titulo.textContent = 'Campanha não encontrada';
+                status.textContent = ' Erro';
+                status.className = 'badge-admin';
+                document.getElementById('party-members-list').innerHTML = `
+                    <div class="empty-state">
+                        <i class="ph ph-warning"></i>
+                        Campanha não encontrada ou foi removida.
+                    </div>
+                `;
+                return;
+            }
+            
+            titulo.textContent = `Campanha: ${camp.nome}`;
+            status.textContent = camp.privada ? ' Privada' : ' Pública';
+            status.className = camp.privada ? 'badge-admin' : 'badge-normal';
+            
+            // Carregar membros
+            const personagens = obterPersonagens();
+            const membros = Object.values(personagens).filter(p => p.campanha === camp.nome);
+            const list = document.getElementById('party-members-list');
+            
+            if (membros.length === 0) {
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <i class="ph ph-users"></i>
+                        Nenhum membro nesta party.
+                    </div>
+                `;
+            } else {
+                list.innerHTML = membros.map(p => {
+                    const pvPct = Math.min(100, ((parseInt(p.pv_atual) || 0) / (parseInt(p.pv_max) || 1)) * 100);
+                    const edPct = Math.min(100, ((parseInt(p.ed_atual) || 0) / (parseInt(p.ed_max) || 1)) * 100);
+                    const ehPct = Math.min(100, ((parseInt(p.eh_atual) || 0) / (parseInt(p.eh_max) || 1)) * 100);
+                    
+                    return `
+                        <div class="member-card">
+                            <img class="avatar" src="${p.img || ''}" onerror="this.style.display='none'">
+                            <div class="info">
+                                <div class="name">${p.nome || 'Sem nome'}</div>
+                                <div class="class">${p.classe || ''} - Nv.${p.nivel || 0}</div>
+                            </div>
+                            <div class="stats">
+                                <div class="stat-item stat-pv">
+                                    <div class="stat-label">PV</div>
+                                    <div class="stat-value">${p.pv_atual || 0}/${p.pv_max || 0}</div>
+                                    <div class="stat-bar"><div class="fill" style="width:${pvPct}%"></div></div>
+                                </div>
+                                <div class="stat-item stat-ed">
+                                    <div class="stat-label">ED</div>
+                                    <div class="stat-value">${p.ed_atual || 0}/${p.ed_max || 0}</div>
+                                    <div class="stat-bar"><div class="fill" style="width:${edPct}%"></div></div>
+                                </div>
+                                <div class="stat-item stat-eh">
+                                    <div class="stat-label">EH</div>
+                                    <div class="stat-value">${p.eh_atual || 0}/${p.eh_max || 0}</div>
+                                    <div class="stat-bar"><div class="fill" style="width:${ehPct}%"></div></div>
+                                </div>
+                            </div>
+                            <div class="actions">
+                                <button onclick="window.location.href='ficha.html?id=${p.id}'">
+                                    <i class="ph ph-eye"></i> Ficha
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+            
+            // Carregar logs
+            carregarLogs();
+        }
+        
+        function carregarLogs() {
+            const logs = obterLogs();
+            const container = document.getElementById('roll-log');
+            const count = document.getElementById('log-count');
+            
+            if (logs.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="ph ph-dice"></i>
+                        Aguardando rolagens...
+                    </div>
+                `;
+                count.textContent = '0';
+                return;
+            }
+            
+            count.textContent = logs.length;
+            
+            const logsToShow = logs.slice(-30).reverse();
+            container.innerHTML = logsToShow.map(log => {
+                const isCrit = log.critico || false;
+                let resultado = log.resultado?.total || log.resultado || '—';
+                let detalhes = '';
+                
+                if (log.detalhes && typeof log.detalhes === 'string') {
+                    detalhes = log.detalhes;
+                } else if (log.resultado?.detalhes) {
+                    detalhes = log.resultado.detalhes;
+                }
+                
+                return `
+                    <div class="roll-item ${isCrit ? 'critico' : ''}">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span class="roll-personagem">${log.personagem || 'Desconhecido'}</span>
+                            <span class="roll-time">${formatarHora(log.timestamp || Date.now())}</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:2px;">
+                            <span class="roll-nome">${log.nome || log.tipo || 'Rolagem'}</span>
+                            <span class="roll-resultado">${isCrit ? '💥 ' : ''}${resultado}</span>
+                        </div>
+                        ${detalhes ? `<div style="font-size:0.65rem; color:#666; margin-top:2px;">${detalhes}</div>` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function atualizarParty() {
+            carregarParty();
+            mostrarToast(' Party atualizada!', 'info');
+        }
+        
+        // ============================================
+        // FUNÇÃO COPIAR LINK OBS - ADICIONADA AQUI
+        // ============================================
+        function copiarLinkPartyOBS() {
+            const camp = obterCampanha();
+            if (!camp) {
+                mostrarToast('Campanha não encontrada!', 'error');
+                return;
+            }
+            
+            // MESMA LÓGICA DO ficha.js
+            const baseUrl = window.location.origin + window.location.pathname.replace('party.html', 'obs/party-obs.html');
+            const url = baseUrl + '?id=' + campId;
+            
+            // Copiar para clipboard
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(url).then(() => {
+                    mostrarToast(' Link OBS da Party copiado!', 'success');
+                }).catch(() => {
+                    // Fallback
+                    const input = document.createElement('input');
+                    input.value = url;
+                    document.body.appendChild(input);
+                    input.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(input);
+                    mostrarToast(' Link OBS da Party copiado!', 'success');
+                });
+            } else {
+                // Fallback para navegadores antigos
+                const input = document.createElement('input');
+                input.value = url;
+                document.body.appendChild(input);
+                input.select();
+                document.execCommand('copy');
+                document.body.removeChild(input);
+                mostrarToast(' Link OBS da Party copiado!', 'success');
+            }
+        }
+        
+        // Toast
+        function mostrarToast(mensagem, tipo = 'info') {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-mensagem').textContent = mensagem;
+            toast.className = 'toast ' + tipo;
+            toast.style.display = 'block';
+            clearTimeout(toast._timeout);
+            toast._timeout = setTimeout(() => { toast.style.display = 'none'; }, 3000);
+        }
+        
+        // Inicializar
+        function init() {
+            if (!campId) {
+                document.getElementById('campanha-titulo').textContent = '⚠️ Nenhuma campanha selecionada';
+                document.getElementById('party-members-list').innerHTML = `
+                    <div class="empty-state">
+                        <i class="ph ph-warning"></i>
+                        Nenhum ID de campanha fornecido.
+                    </div>
+                `;
+                return;
+            }
+            
+            carregarParty();
+            
+            // Atualizar automaticamente
+            window.addEventListener('storage', (e) => {
+                if (e.key === 'apoteose_personagens' || e.key === 'apoteose_campanhas' || e.key === 'apoteose_rolagens') {
+                    carregarParty();
+                }
+            });
+            
+            // Polling para sincronia entre abas
+            updateInterval = setInterval(carregarParty, 3000);
+        }
+        
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

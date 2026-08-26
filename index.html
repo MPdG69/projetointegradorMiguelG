@@ -8,6 +8,7 @@
     <link rel="icon" href="acra.png" type="image/png">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <link rel="stylesheet" href="css/index.css">
+</head>
 <body>
 
 <!-- ========================================== -->
@@ -117,9 +118,6 @@
         <button class="nav-btn" onclick="switchMainTab('campanhas')" id="nav-campanhas">
             <i class="ph ph-flag"></i> <span id="nav-campanhas-label">Campanhas</span>
         </button>
-        <button class="nav-btn" onclick="switchMainTab('party')" id="nav-party" style="display:none;">
-            <i class="ph ph-shield"></i> <span>Party</span>
-        </button>
         <button class="nav-btn" onclick="switchMainTab('admin')" id="nav-admin" style="display:none;">
             <i class="ph ph-gear"></i> <span>Admin</span>
         </button>
@@ -144,37 +142,6 @@
         <div id="lista-campanhas" class="card-grid"></div>
     </div>
 
-    <!-- CONTEÚDO: Party -->
-    <div id="tab-party" class="main-content">
-        <div class="gm-layout">
-            <div class="gm-stats">
-                <div class="content-header">
-                    <h3><i class="ph ph-shield"></i> Party - <span id="party-campanha-nome">Nenhuma campanha selecionada</span></h3>
-                </div>
-                <table class="gm-table">
-                    <thead>
-                        <tr>
-                            <th>Nome</th>
-                            <th>PV</th>
-                            <th>ED</th>
-                            <th>EH</th>
-                            <th>Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody id="gm-body">
-                        <tr><td colspan="5" style="text-align:center; color:var(--text-dim); padding:20px;">Selecione uma campanha para ver a party.</td></tr>
-                    </tbody>
-                </table>
-            </div>
-            <div class="gm-logs">
-                <div class="roll-log-title"><i class="ph ph-dice-six"></i> Últimas Rolagens</div>
-                <div id="roll-log" class="roll-log">
-                    <p style="color: #666; font-size: 0.8rem;">Aguardando dados...</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- CONTEÚDO: Admin -->
     <div id="tab-admin" class="main-content">
         <div class="content-header">
@@ -184,6 +151,16 @@
             </button>
         </div>
         <div id="lista-campanhas-admin"></div>
+        
+        <!-- SEÇÃO DE USUÁRIOS -->
+        <div class="content-header" style="margin-top:30px; border-top:1px solid var(--border); padding-top:20px;">
+            <h3><i class="ph ph-users-three"></i> Gerenciar Usuários e Permissões</h3>
+        </div>
+        <div id="lista-usuarios-admin">
+            <div style="text-align:center; color:var(--text-dim); padding:20px;">
+                Carregando usuários...
+            </div>
+        </div>
     </div>
 </div>
 

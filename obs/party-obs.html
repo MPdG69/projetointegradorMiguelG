@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OBS Party - Apoteose</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            background: transparent; 
+            font-family: 'Segoe UI', sans-serif; 
+            overflow: hidden;
+            padding: 10px;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+        
+        .party-container {
+            width: 100%;
+            max-width: 800px;
+            background: rgba(10, 10, 15, 0.92);
+            border: 2px solid #9d4edd;
+            border-radius: 12px;
+            padding: 16px 20px;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+        }
+        
+        .party-title {
+            color: #ffcc00;
+            font-size: 0.9rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-align: center;
+            margin-bottom: 12px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 8px;
+        }
+        
+        .party-members {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        
+        .member-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 12px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            border-left: 3px solid #9d4edd;
+            transition: background 0.3s;
+        }
+        .member-row:hover {
+            background: rgba(255,255,255,0.08);
+        }
+        
+        .member-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 1px solid #666;
+            flex-shrink: 0;
+            background: #222;
+        }
+        
+        .member-info {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .member-name {
+            font-weight: bold;
+            color: #fff;
+            font-size: 0.85rem;
+        }
+        .member-name .member-class {
+            font-weight: normal;
+            color: #888;
+            font-size: 0.7rem;
+        }
+        
+        .member-bars {
+            display: flex;
+            gap: 12px;
+            flex: 1;
+            min-width: 120px;
+        }
+        
+        .bar-group {
+            flex: 1;
+            min-width: 40px;
+        }
+        
+        .bar-group .bar-label {
+            font-size: 0.55rem;
+            color: #666;
+            text-transform: uppercase;
+            font-weight: bold;
+            display: block;
+        }
+        
+        .bar-group .bar-value {
+            font-size: 0.65rem;
+            color: #aaa;
+            float: right;
+        }
+        
+        .bar-group .bar-track {
+            height: 4px;
+            background: #1a1a1a;
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 2px;
+        }
+        .bar-group .bar-track .bar-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+        .bar-pv .bar-fill { background: #ff4d4d; }
+        .bar-ed .bar-fill { background: #ffcc00; }
+        .bar-eh .bar-fill { background: #9d4edd; }
+        
+        .member-actions {
+            flex-shrink: 0;
+        }
+        .member-actions button {
+            background: rgba(157, 78, 221, 0.3);
+            border: none;
+            color: #fff;
+            padding: 2px 10px;
+            border-radius: 4px;
+            font-size: 0.65rem;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .member-actions button:hover {
+            background: rgba(157, 78, 221, 0.6);
+        }
+        
+        .empty-state {
+            text-align: center;
+            color: #666;
+            padding: 20px;
+            font-size: 0.85rem;
+        }
+        
+        .party-container.compact .member-row {
+            padding: 4px 8px;
+            gap: 8px;
+        }
+        .party-container.compact .member-avatar {
+            width: 28px;
+            height: 28px;
+        }
+        .party-container.compact .member-name {
+            font-size: 0.75rem;
+        }
+        .party-container.compact .bar-group .bar-label {
+            font-size: 0.45rem;
+        }
+        .party-container.compact .bar-group .bar-value {
+            font-size: 0.55rem;
+        }
+        .party-container.compact .member-actions button {
+            font-size: 0.55rem;
+            padding: 1px 6px;
+        }
+        
+        @media (max-width: 600px) {
+            .party-container {
+                padding: 10px 12px;
+            }
+            .member-bars {
+                flex-direction: column;
+                gap: 2px;
+                min-width: 60px;
+            }
+            .bar-group {
+                min-width: unset;
+            }
+            .member-avatar {
+                width: 28px;
+                height: 28px;
+            }
+            .member-name {
+                font-size: 0.7rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="party-container" id="party-container">
+        <div class="party-title" id="party-title"> Carregando Party...</div>
+        <div class="party-members" id="party-members">
+            <div class="empty-state"> Carregando membros da party...</div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            console.log(' OBS Party iniciado...');
+            
+            const params = new URLSearchParams(window.location.search);
+            const campId = params.get('id');
+            
+            console.log('📌 Campanha ID:', campId);
+            
+            if (!campId) {
+                document.getElementById('party-title').textContent = '⚠️ Nenhum ID informado';
+                document.getElementById('party-members').innerHTML = 
+                    '<div class="empty-state">❌ Nenhum ID de campanha fornecido na URL.</div>';
+                return;
+            }
+            
+            const compact = params.get('compact') === 'true';
+            if (compact) {
+                document.getElementById('party-container').classList.add('compact');
+            }
+            
+            function carregarParty() {
+                try {
+                    console.log(' Carregando party OBS...');
+                    
+                    const campData = JSON.parse(localStorage.getItem('apoteose_campanhas') || '{}');
+                    const pData = JSON.parse(localStorage.getItem('apoteose_personagens') || '{}');
+                    
+                    console.log(' Campanhas carregadas:', Object.keys(campData));
+                    console.log(' Personagens carregados:', Object.keys(pData));
+                    
+                    const camp = campData[campId];
+                    if (!camp) {
+                        document.getElementById('party-title').textContent = '⚠️ Campanha não encontrada';
+                        document.getElementById('party-members').innerHTML = 
+                            '<div class="empty-state">❌ Campanha não encontrada ou removida.</div>';
+                        return;
+                    }
+                    
+                    document.getElementById('party-title').textContent = ` ${camp.nome} (${camp.privada ? ' Privada' : ' Pública'})`;
+                    
+                    const membros = Object.values(pData).filter(p => p.campanha === camp.nome);
+                    
+                    console.log('👥 Membros encontrados:', membros.length);
+                    
+                    if (membros.length === 0) {
+                        document.getElementById('party-members').innerHTML = 
+                            '<div class="empty-state">👤 Nenhum membro nesta party.</div>';
+                        return;
+                    }
+                    
+                    document.getElementById('party-members').innerHTML = membros.map(p => {
+                        const pvPct = Math.min(100, ((parseInt(p.pv_atual) || 0) / (parseInt(p.pv_max) || 1)) * 100);
+                        const edPct = Math.min(100, ((parseInt(p.ed_atual) || 0) / (parseInt(p.ed_max) || 1)) * 100);
+                        const ehPct = Math.min(100, ((parseInt(p.eh_atual) || 0) / (parseInt(p.eh_max) || 1)) * 100);
+                        
+                        return `
+                            <div class="member-row">
+                                <img class="member-avatar" src="${p.img || ''}" onerror="this.style.display='none'">
+                                <div class="member-info">
+                                    <div class="member-name">
+                                        ${p.nome || 'Sem nome'}
+                                        <span class="member-class">${p.classe || ''} Nv.${p.nivel || 0}</span>
+                                    </div>
+                                </div>
+                                <div class="member-bars">
+                                    <div class="bar-group bar-pv">
+                                        <span class="bar-label">PV <span class="bar-value">${p.pv_atual || 0}/${p.pv_max || 0}</span></span>
+                                        <div class="bar-track"><div class="bar-fill" style="width:${pvPct}%"></div></div>
+                                    </div>
+                                    <div class="bar-group bar-ed">
+                                        <span class="bar-label">ED <span class="bar-value">${p.ed_atual || 0}/${p.ed_max || 0}</span></span>
+                                        <div class="bar-track"><div class="bar-fill" style="width:${edPct}%"></div></div>
+                                    </div>
+                                    <div class="bar-group bar-eh">
+                                        <span class="bar-label">EH <span class="bar-value">${p.eh_atual || 0}/${p.eh_max || 0}</span></span>
+                                        <div class="bar-track"><div class="bar-fill" style="width:${ehPct}%"></div></div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                    
+                    console.log('✅ Party OBS atualizada com sucesso!');
+                } catch (e) {
+                    console.error('❌ Erro ao carregar party OBS:', e);
+                    document.getElementById('party-members').innerHTML = 
+                        '<div class="empty-state">❌ Erro ao carregar dados: ' + e.message + '</div>';
+                }
+            }
+            
+            // Carregar imediatamente
+            carregarParty();
+            
+            // Atualizar via storage (quando outro navegador/aba mudar os dados)
+            window.addEventListener('storage', (e) => {
+                if (e.key === 'apoteose_personagens' || e.key === 'apoteose_campanhas') {
+                    console.log(' Storage alterado, atualizando...');
+                    carregarParty();
+                }
+            });
+            
+            // Polling para sincronia entre abas (a cada 2 segundos)
+            setInterval(carregarParty, 2000);
+        })();
+    </script>
+</body>
+</html>
