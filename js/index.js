@@ -113,21 +113,43 @@ let estado = {
 // INICIALIZAÇÃO
 // ============================================
 
-function init() {
+async function init() {
     carregarDados();
-    
+
+    // Primeiro, verifica se existe uma sessão PHP ativa
+    try {
+        const resposta = await fetch('api/verificar_sessao.php');
+        const dados = await resposta.json();
+
+        if (dados.logado) {
+            estado.usuario = dados.usuario;
+            entrarNaSessao();
+            return;
+        }
+    } catch (erro) {
+        console.error('Erro ao verificar sessão:', erro);
+    }
+
+    // Mantém a possibilidade de entrar como anônimo
     const sessao = localStorage.getItem('apoteose_sessao');
+
     if (sessao) {
         try {
             const dados = JSON.parse(sessao);
-            if (dados.usuario) {
+
+            if (dados.usuario && dados.usuario.tipo === 'anonimo') {
                 estado.usuario = dados.usuario;
                 entrarNaSessao();
                 return;
             }
-        } catch (e) {}
+        } catch (e) {
+            console.error('Erro ao recuperar sessão anônima:', e);
+        }
     }
-    
+
+    // Remove sessões antigas de demonstração
+    localStorage.removeItem('apoteose_sessao');
+
     mostrarTela('tela-login');
 }
 
@@ -200,58 +222,47 @@ function switchMainTab(tab) {
 // LOGIN
 // ============================================
 
-function handleLogin() {
-    const tipo = document.getElementById('login-tipo').value;
+async function handleLogin() {
     const usuario = document.getElementById('login-usuario').value.trim();
-    const senha = document.getElementById('login-senha').value.trim();
+    const senha = document.getElementById('login-senha').value;
     const msg = document.getElementById('login-mensagem');
-    
-    if (estado.tentativas === 0) {
-        estado.tentativas++;
+
+    if (!usuario || !senha) {
         msg.className = 'login-mensagem erro';
-        msg.innerHTML = '❌ Falha na autenticação. Tente novamente. (Erro forçado para demonstração)';
+        msg.textContent = 'Preencha usuário e senha.';
         return;
     }
-    
-    estado.tentativas = 0;
-    
-    if (tipo === 'anonimo') {
-        entrarComoAnonimo();
-        return;
-    }
-    
-    const userData = USUARIOS[tipo];
-    if (!userData) {
+
+    try {
+        const resposta = await fetch('api/login.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                usuario: usuario,
+                senha: senha
+            })
+        });
+
+        const dados = await resposta.json();
+
+        if (dados.sucesso) {
+            estado.usuario = dados.usuario;
+            msg.className = 'login-mensagem sucesso';
+            msg.textContent = dados.mensagem;
+
+            entrarNaSessao();
+        } else {
+            msg.className = 'login-mensagem erro';
+            msg.textContent = dados.mensagem;
+        }
+
+    } catch (erro) {
         msg.className = 'login-mensagem erro';
-        msg.innerHTML = '❌ Tipo de usuário inválido.';
-        return;
+        msg.textContent = 'Não foi possível conectar ao servidor.';
+        console.error(erro);
     }
-    
-    if (usuario !== userData.id && usuario !== userData.nome) {
-        msg.className = 'login-mensagem erro';
-        msg.innerHTML = '❌ Usuário incorreto.';
-        return;
-    }
-    
-    if (senha !== userData.senha) {
-        msg.className = 'login-mensagem erro';
-        msg.innerHTML = '❌ Senha incorreta.';
-        return;
-    }
-    
-    msg.className = 'login-mensagem sucesso';
-    msg.innerHTML = '✅ Login realizado com sucesso!';
-    
-    estado.usuario = {
-        id: userData.id,
-        nome: userData.nome,
-        tipo: userData.tipo,
-        email: userData.email,
-        foto: userData.foto
-    };
-    
-    salvarSessao();
-    entrarNaSessao();
 }
 
 function entrarComoAnonimo() {
@@ -305,22 +316,102 @@ function entrarNaSessao() {
     
     mostrarTela('tela-principal');
     renderizarFiltros();
-    renderizarPersonagens();
+
+    if (user.tipo === 'normal') {
+        carregarPersonagensBanco();
+    } else {
+        renderizarPersonagens();
+    }
+
     renderizarCampanhas();
     renderizarAdmin();
     switchMainTab('personagens');
 }
 
-function handleLogout() {
+async function handleLogout() {
+    try {
+        await fetch('api/logout.php');
+    } catch (erro) {
+        console.error('Erro ao encerrar sessão:', erro);
+    }
+
     estado.usuario = null;
     estado.campanhaSelecionada = null;
+
     localStorage.removeItem('apoteose_sessao');
+
     document.getElementById('login-usuario').value = '';
     document.getElementById('login-senha').value = '';
     document.getElementById('login-mensagem').innerHTML = '';
     document.getElementById('login-mensagem').className = 'login-mensagem';
+
     estado.tentativas = 0;
+
     mostrarTela('tela-login');
+}
+
+// ============================================
+// CADASTRO DE USUÁRIO
+// ============================================
+
+async function handleCadastro() {
+    console.log('[cadastro] botão clicado');
+    const nome = document.getElementById('cadastro-nome').value.trim();
+    const username = document.getElementById('cadastro-username').value.trim();
+    const email = document.getElementById('cadastro-email').value.trim();
+    const senha = document.getElementById('cadastro-senha').value;
+    const msg = document.getElementById('cadastro-mensagem');
+    const btn = document.getElementById('btn-cadastrar');
+
+    const mostrar = (texto, tipo) => {
+        msg.className = 'login-mensagem ' + tipo;
+        msg.textContent = texto;
+    };
+
+    if (!nome || !username || !email || !senha) {
+        mostrar('Preencha todos os campos.', 'erro');
+        return;
+    }
+    if (senha.length < 6) {
+        mostrar('A senha precisa ter pelo menos 6 caracteres.', 'erro');
+        return;
+    }
+
+    mostrar('Enviando...', '');
+    btn.disabled = true;
+
+    try {
+        const resposta = await fetch('api/cadastrar.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nome, username, email, senha })
+        });
+
+        const texto = await resposta.text();
+        console.log('[cadastro] status:', resposta.status, 'resposta:', texto);
+
+        let dados;
+        try {
+            dados = JSON.parse(texto);
+        } catch (e) {
+            mostrar('O servidor não devolveu JSON (status ' + resposta.status + '). Veja o Console (F12).', 'erro');
+            return;
+        }
+
+        if (dados.sucesso) {
+            mostrar(dados.mensagem, 'sucesso');
+            ['nome', 'username', 'email', 'senha'].forEach(c => {
+                document.getElementById('cadastro-' + c).value = '';
+            });
+        } else {
+            mostrar(dados.mensagem, 'erro');
+        }
+    } catch (erro) {
+        console.error('[cadastro] erro:', erro);
+        mostrar('Não foi possível conectar ao servidor.', 'erro');
+    } finally {
+        btn.disabled = false;
+    }
 }
 
 // ============================================
@@ -495,54 +586,119 @@ function confirmarSenhaPrivada() {
 // PERSONAGENS
 // ============================================
 
-function criarPersonagem() {
+async function criarPersonagem() {
     if (estado.usuario.tipo === 'anonimo') {
         mostrarToast('Anônimos não podem criar personagens.', 'error');
         return;
     }
-    mostrarToast('Criação de personagens desativada para demonstração.', 'info');
+
+    const nome = prompt('Digite o nome do personagem:');
+
+    if (!nome || !nome.trim()) {
+        return;
+    }
+
+    const classe = prompt('Digite a classe do personagem:') || '';
+
+    try {
+        const resposta = await fetch('api/personagens_criar.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                nome: nome.trim(),
+                classe: classe.trim()
+            })
+        });
+
+        const dados = await resposta.json();
+
+        if (!dados.sucesso) {
+            mostrarToast(dados.mensagem, 'error');
+            return;
+        }
+
+        mostrarToast('Personagem criado com sucesso!', 'success');
+        await carregarPersonagensBanco();
+
+    } catch (erro) {
+        mostrarToast('Erro ao criar personagem.', 'error');
+        console.error(erro);
+    }
+}
+
+async function carregarPersonagensBanco() {
+    try {
+        const resposta = await fetch('api/personagens_listar.php');
+        const dados = await resposta.json();
+
+        if (!dados.sucesso) {
+            mostrarToast(dados.mensagem, 'error');
+            return;
+        }
+
+        estado.personagens = {};
+
+        dados.personagens.forEach(p => {
+            estado.personagens[p.id] = {
+                ...p,
+                dono: estado.usuario.id,
+                campanha: '',
+                img: p.img || ''
+            };
+        });
+
+        renderizarPersonagens();
+
+    } catch (erro) {
+        mostrarToast('Erro ao carregar personagens.', 'error');
+        console.error(erro);
+    }
 }
 
 function renderizarPersonagens() {
     const container = document.getElementById('lista-personagens');
     const user = estado.usuario;
-    
+
     let personagens = Object.values(estado.personagens);
-    
+
     if (user.tipo === 'anonimo') {
         const campPublicas = Object.values(estado.campanhas)
             .filter(c => !c.privada)
             .map(c => c.nome);
+
         personagens = personagens.filter(p => campPublicas.includes(p.campanha));
+
     } else if (user.tipo === 'admin') {
         personagens = [];
+
     } else {
-        personagens = personagens.filter(p => p.dono === user.id);
+        personagens = personagens.filter(p => String(p.dono) === String(user.id));
     }
-    
+
     if (personagens.length === 0) {
         container.innerHTML = `
             <div style="grid-column:1/-1; text-align:center; color:var(--text-dim); padding:40px;">
                 <i class="ph ph-user" style="font-size:3rem; display:block; margin-bottom:10px;"></i>
                 <p>${user.tipo === 'anonimo' ? 'Nenhum personagem público disponível.' : 'Nenhum personagem encontrado.'}</p>
-                ${user.tipo === 'normal' ? '<p style="font-size:0.85rem;">Você tem o personagem Max na campanha Chakal.</p>' : ''}
             </div>
         `;
         return;
     }
-    
+
     container.innerHTML = personagens.map(p => `
         <div class="card" onclick="abrirFicha('${p.id}')">
             <img src="${p.img || ''}" onerror="this.src=''">
             <h4>${p.nome}</h4>
-            <p>${p.classe} - Nv. ${p.nivel}</p>
-            <small style="color:var(--text-dim);">${p.campanha || 'Sem campanha'}</small>
+            <p>${p.classe || 'Sem classe'} - Nv. ${p.nivel}</p>
+            <small style="color:var(--text-dim);">
+                ${p.campanha || 'Sem campanha'}
+            </small>
             <div class="card-actions">
-                ${p.dono === user.id || user.tipo === 'admin' ? `
-                    <button onclick="event.stopPropagation(); abrirFicha('${p.id}')">
-                        <i class="ph ph-eye"></i>
-                    </button>
-                ` : ''}
+                <button onclick="event.stopPropagation(); abrirFicha('${p.id}')">
+                    <i class="ph ph-eye"></i>
+                </button>
             </div>
         </div>
     `).join('');
@@ -912,7 +1068,15 @@ window.addEventListener('storage', function(e) {
 });
 
 // ============================================
-// INICIALIZAÇÃO
+// INICIALIZAÇÃO COM VÍNCULO SEGURO DE EVENTOS
 // ============================================
 
-document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded', () => {
+    init();
+
+    // Adiciona o evento de clique no botão de cadastro de forma segura
+    const btnCadastrar = document.getElementById('btn-cadastrar');
+    if (btnCadastrar) {
+        btnCadastrar.addEventListener('click', handleCadastro);
+    }
+});
