@@ -324,28 +324,67 @@
                 
                 <!-- Link de Convite -->
                 <div class="campanha-field">
-                    <label>Link de Convite</label>
-                    <div style="display:flex; gap:10px;">
-                        <input type="text" id="campanha-link" placeholder="Link será gerado" readonly style="flex:1; background:#222;">
-                        <button class="btn-secondary" onclick="gerarLinkCampanha()">
-                            <i class="ph ph-link"></i> Gerar
-                        </button>
-                    </div>
-                </div>
+    <label>Link de Convite</label>
+    <div style="display:flex; gap:10px;">
+        <input type="text" id="campanha-link" placeholder="Salve a campanha primeiro" readonly style="flex:1; background:#222;">
+        <button class="btn-secondary" onclick="gerarLinkCampanha()">
+            <i class="ph ph-copy"></i> Copiar
+        </button>
+    </div>
+</div>
                 
                 <!-- Botões -->
-                <div style="display:flex; gap:10px; margin-top:20px; justify-content:flex-end;">
-                    <button class="btn-secondary" onclick="fecharModalCampanha()">Cancelar</button>
-                    <button class="btn-danger" onclick="apagarCampanha()" id="btn-apagar-campanha" style="display:none;">
-                        <i class="ph ph-trash"></i> Apagar Campanha
-                    </button>
-                    <button class="btn-primary" onclick="salvarCampanha()">
-                        <i class="ph ph-check"></i> Salvar
-                    </button>
-                </div>
-            </div>
+                
+
+<!-- Participantes da campanha -->
+<div class="campanha-field" id="campanha-participantes-field" style="display:none;">
+    <label>Personagens da Campanha</label>
+
+    <div id="campanha-participantes-lista" style="margin-top:10px;">
+        <p style="color:var(--text-dim); font-size:0.85rem;">
+            Carregando personagens...
+        </p>
+    </div>
+
+    <div style="border-top:1px solid var(--border); margin-top:15px; padding-top:15px;">
+        <label>Adicionar personagem</label>
+
+        <div style="display:flex; gap:10px;">
+            <select id="campanha-personagem-selecionado"
+                style="flex:1; min-width:0;">
+                <option value="">Selecione um personagem</option>
+            </select>
+
+            <button class="btn-primary" type="button"
+                onclick="adicionarPersonagemCampanha()">
+                <i class="ph ph-plus"></i> Adicionar
+            </button>
         </div>
     </div>
+</div>
+
+</div>
+
+<!-- Botões do modal -->
+<div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+
+    <button class="btn-secondary" type="button"
+        onclick="fecharModalCampanha()">
+        Cancelar
+    </button>
+
+    <button class="btn-secondary" type="button"
+        id="btn-apagar-campanha"
+        onclick="apagarCampanha()"
+        style="display:none;">
+        <i class="ph ph-trash"></i> Apagar
+    </button>
+
+    <button class="btn-primary" type="button"
+        onclick="salvarCampanha()">
+        <i class="ph ph-floppy-disk"></i> Salvar
+    </button>
+
 </div>
 
 <!-- ========================================== -->

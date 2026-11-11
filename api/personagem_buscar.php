@@ -1,4 +1,3 @@
-
 <?php
 session_start();
 header("Content-Type: application/json; charset=UTF-8");
@@ -110,6 +109,11 @@ try {
             "treino" => (int)$pericia["treino"],
             "outros" => (int)$pericia["outros"]
         ];
+    }
+
+    // Objeto vazio vira {} no JSON (e não []), mantendo o formato esperado pelo JS
+    if (empty($personagem["pericias"])) {
+        $personagem["pericias"] = new stdClass();
     }
 
     $stmt = $pdo->prepare(

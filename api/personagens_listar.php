@@ -17,7 +17,7 @@ $usuarioId = $_SESSION["usuario"]["id"];
 
 try {
     $sql = "SELECT
-                id, nome, classe, nivel, gnivel,
+                 id, usuario_id, nome, classe, nivel, gnivel,
                 campanha_id, dom, img, pv_atual, pv_max,
                 ed_atual, ed_max, eh_atual, eh_max
             FROM personagens

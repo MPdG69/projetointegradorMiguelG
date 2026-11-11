@@ -38,9 +38,8 @@ if (strlen($senha) < 6) {
 $senhaHash = password_hash($senha, PASSWORD_DEFAULT);
 
 try {
-    $sql = "INSERT INTO usuarios (username, nome, email, senha_hash)
-            VALUES (:username, :nome, :email, :senha)";
-
+    $sql = "INSERT INTO usuarios (username, nome, email, senha_hash, tipo)
+        VALUES (:username, :nome, :email, :senha, 'normal')";
     $stmt = $pdo->prepare($sql);
 
     $stmt->execute([

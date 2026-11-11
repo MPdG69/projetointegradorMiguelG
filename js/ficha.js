@@ -18,6 +18,7 @@ const skillsList = [
 
 let personagemId = null;
 let dadosPersonagem = null;
+let carregando = false; // true enquanto a ficha está sendo preenchida (impede auto-salvar)
 
 // ============================================
 // SERVIÇO DE ROLAGEM (EMBUTIDO PARA COMPATIBILIDADE)
@@ -92,22 +93,62 @@ const DiceService = {
         return resultado;
     },
 
-    registrarLog(personagem, tipo, nome, resultado, critico = false) {
+    async registrarLog(personagem, tipo, nome, resultado, critico = false) {
+        // Manter o armazenamento local da ficha de demonstração
+        if (personagemId === 'demo_ficha') {
+            try {
+                const logs = JSON.parse(
+                    localStorage.getItem('apoteose_rolagens') || '[]'
+                );
+
+                logs.push({
+                    timestamp: Date.now(),
+                    personagem,
+                    tipo,
+                    nome,
+                    resultado,
+                    critico,
+                    detalhes: resultado.detalhes || resultado.dados || []
+                });
+
+                if (logs.length > 100) {
+                    logs.splice(0, logs.length - 100);
+                }
+
+                localStorage.setItem('apoteose_rolagens', JSON.stringify(logs));
+            } catch (e) {
+                console.error('Erro ao registrar log:', e);
+            }
+
+            return;
+        }
+
         try {
-            const logs = JSON.parse(localStorage.getItem('apoteose_rolagens') || '[]');
-            logs.push({
-                timestamp: Date.now(),
-                personagem: personagem,
-                tipo: tipo,
-                nome: nome,
-                resultado: resultado,
-                critico: critico,
-                detalhes: resultado.detalhes || resultado.dados || []
+            const resposta = await fetch('api/rolagem_registrar.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    personagem_id: personagemId,
+                    tipo: tipo,
+                    nome: nome,
+                    resultado: resultado.total ?? 0,
+                    detalhes: typeof resultado.detalhes === 'string'
+                        ? resultado.detalhes
+                        : JSON.stringify(resultado.detalhes || resultado.dados || []),
+                    critico: critico
+                })
             });
-            if (logs.length > 100) logs.splice(0, logs.length - 100);
-            localStorage.setItem('apoteose_rolagens', JSON.stringify(logs));
-        } catch (e) {
-            console.error('Erro ao registrar log:', e);
+
+            const dados = await resposta.json();
+
+            if (!resposta.ok || !dados.sucesso) {
+                console.error('Erro ao registrar rolagem:', dados.mensagem);
+            }
+
+        } catch (erro) {
+            console.error('Erro ao conectar com o servidor:', erro);
         }
     }
 };
@@ -115,7 +156,7 @@ const DiceService = {
 // ============================================
 // INICIALIZAÇÃO
 // ============================================
-function init() {
+async function init() {
     const params = new URLSearchParams(window.location.search);
     personagemId = params.get('id');
 
@@ -128,14 +169,9 @@ function init() {
 
     renderizarAtributos();
     renderizarPericias();
-    carregarPersonagem();
-    renderizarInventario();
-    renderizarPassivas();
-    renderizarAtivas();
-    renderizarResistencias();
-    renderizarAcessoRapido();
-    
-    // Gerar link OBS
+
+    await carregarPersonagem();
+
     setTimeout(gerarLinkOBS, 500);
 }
 
@@ -294,12 +330,35 @@ function carregarDoStorage() {
 // ============================================
 // CARREGAR PERSONAGEM
 // ============================================
-function carregarPersonagem() {
-    dadosPersonagem = carregarDoStorage();
-    if (!dadosPersonagem) {
-        criarPersonagemDemonstracao();
+async function carregarPersonagem() {
+    if (personagemId === 'demo_ficha') {
         dadosPersonagem = carregarDoStorage();
+    } else {
+        try {
+            const resposta = await fetch(
+                `api/personagem_buscar.php?id=${encodeURIComponent(personagemId)}`
+            );
+
+            const resultado = await resposta.json();
+
+            if (!resposta.ok || !resultado.sucesso) {
+                mostrarToast(
+                    resultado.mensagem || 'Erro ao carregar personagem.',
+                    'error'
+                );
+                return;
+            }
+
+            dadosPersonagem = resultado.personagem;
+
+        } catch (erro) {
+            console.error('Erro ao buscar personagem:', erro);
+            mostrarToast('Não foi possível conectar ao servidor.', 'error');
+            return;
+        }
     }
+
+    carregando = true;
 
     document.getElementById('i-nome').value = dadosPersonagem.nome || '';
     document.getElementById('i-classe').value = dadosPersonagem.classe || '';
@@ -376,14 +435,16 @@ function carregarPersonagem() {
     renderizarResistencias();
     renderizarAcessoRapido();
     atualizarBarras();
+    carregando = false;
     mostrarToast('Ficha carregada!', 'success');
 }
 
 // ============================================
 // SALVAR FICHA
 // ============================================
-function salvarFicha() {
-    if (!dadosPersonagem) return;
+async function salvarFicha() {
+    // Durante o carregamento os campos ainda estão vazios/padrão: salvar agora apagaria os dados do banco
+    if (!dadosPersonagem || carregando) return;
 
     dadosPersonagem.nome = document.getElementById('i-nome').value;
     dadosPersonagem.classe = document.getElementById('i-classe').value;
@@ -406,47 +467,132 @@ function salvarFicha() {
     dadosPersonagem.pos_pequena = parseInt(document.getElementById('pos-pequena').value) || 0;
 
     dadosPersonagem.lembrancas = parseInt(document.getElementById('lembrancas').value) || 0;
-
     dadosPersonagem.divinity_val = parseInt(document.getElementById('div-slider').value) || 50;
-
     dadosPersonagem.anotacoes = document.getElementById('anotacoes').value;
-
-    dadosPersonagem.carga_max = parseInt(document.getElementById('w-max').value) || 20;
+    dadosPersonagem.carga_max = parseFloat(document.getElementById('w-max').value) || 20;
 
     if (!dadosPersonagem.atributos) dadosPersonagem.atributos = {};
+
     [...mainAttrs, ...specAttrs].forEach(attr => {
         const el = document.getElementById('attr-' + attr);
-        if (el) {
-            dadosPersonagem.atributos[attr] = parseInt(el.value) || 0;
-        }
+        if (el) dadosPersonagem.atributos[attr] = parseInt(el.value) || 0;
     });
 
     if (!dadosPersonagem.defesa) dadosPersonagem.defesa = {};
-    const fields = ['natural', 'escudo', 'armadura', 'itens', 'tecnicas', 'reflexos'];
-    fields.forEach(f => {
+
+    ['natural', 'escudo', 'armadura', 'itens', 'tecnicas', 'reflexos'].forEach(f => {
         const el = document.getElementById('esq-' + f);
-        if (el) {
-            dadosPersonagem.defesa['esquiva_' + f] = parseInt(el.value) || 0;
-        }
+        if (el) dadosPersonagem.defesa['esquiva_' + f] = parseInt(el.value) || 0;
     });
 
-    if (!dadosPersonagem.pericias) dadosPersonagem.pericias = {};
+    // O PHP devolve [] (array) quando não há perícias; arrays perdem propriedades
+    // com chave de texto no JSON.stringify, então precisa ser um objeto {}.
+    if (!dadosPersonagem.pericias || Array.isArray(dadosPersonagem.pericias)) {
+        dadosPersonagem.pericias = {};
+    }
+
     skillsList.forEach(skill => {
-        const attrSelect = document.getElementById('skill-attr-' + skill);
-        const treinoInput = document.getElementById('skill-treino-' + skill);
-        const outrosInput = document.getElementById('skill-outros-' + skill);
-        if (attrSelect && treinoInput && outrosInput) {
-            if (!dadosPersonagem.pericias[skill]) dadosPersonagem.pericias[skill] = {};
-            dadosPersonagem.pericias[skill].atributo = attrSelect.value;
-            dadosPersonagem.pericias[skill].treino = parseInt(treinoInput.value) || 0;
-            dadosPersonagem.pericias[skill].outros = parseInt(outrosInput.value) || 0;
+        const attr = document.getElementById('skill-attr-' + skill);
+        const treino = document.getElementById('skill-treino-' + skill);
+        const outros = document.getElementById('skill-outros-' + skill);
+
+        if (attr && treino && outros) {
+            dadosPersonagem.pericias[skill] = {
+                atributo: attr.value,
+                treino: parseInt(treino.value) || 0,
+                outros: parseInt(outros.value) || 0
+            };
         }
     });
 
-    salvarNoStorage(dadosPersonagem);
     atualizarBarras();
-    mostrarToast('Ficha salva!', 'success');
+
+    if (personagemId === 'demo_ficha') {
+        salvarNoStorage(dadosPersonagem);
+        mostrarToast('Ficha salva!', 'success');
+        return;
+    }
+
+    const payload = {
+        id: personagemId,
+
+        nome: dadosPersonagem.nome,
+        classe: dadosPersonagem.classe,
+        nivel: dadosPersonagem.nivel,
+        gnivel: dadosPersonagem.gnivel,
+        dom: dadosPersonagem.dom,
+        lembrancas: dadosPersonagem.lembrancas,
+        divinity_val: dadosPersonagem.divinity_val,
+        senha: dadosPersonagem.senha,
+        img: dadosPersonagem.img,
+        anotacoes: dadosPersonagem.anotacoes,
+
+        pv_atual: dadosPersonagem.pv_atual,
+        pv_max: dadosPersonagem.pv_max,
+        ed_atual: dadosPersonagem.ed_atual,
+        ed_max: dadosPersonagem.ed_max,
+        eh_atual: dadosPersonagem.eh_atual,
+        eh_max: dadosPersonagem.eh_max,
+
+        forca: dadosPersonagem.atributos['Força'] || 0,
+        destreza: dadosPersonagem.atributos['Destreza'] || 0,
+        compostura: dadosPersonagem.atributos['Compostura'] || 0,
+        fe: dadosPersonagem.atributos['Fé'] || 0,
+        inteligencia: dadosPersonagem.atributos['Inteligência'] || 0,
+        carisma: dadosPersonagem.atributos['Carisma'] || 0,
+        mente: dadosPersonagem.atributos['Mente'] || 0,
+        corpo: dadosPersonagem.atributos['Corpo'] || 0,
+        alma: dadosPersonagem.atributos['Alma'] || 0,
+
+        vig_atual: dadosPersonagem.vig_atual,
+        vig_esquivas: dadosPersonagem.vig_esquivas,
+        carga_max: dadosPersonagem.carga_max,
+        pos_grande: dadosPersonagem.pos_grande,
+        pos_pequena: dadosPersonagem.pos_pequena,
+
+        esq_natural: dadosPersonagem.defesa.esquiva_natural || 0,
+        esq_escudo: dadosPersonagem.defesa.esquiva_escudo || 0,
+        esq_armadura: dadosPersonagem.defesa.esquiva_armadura || 0,
+        esq_itens: dadosPersonagem.defesa.esquiva_itens || 0,
+        esq_tecnicas: dadosPersonagem.defesa.esquiva_tecnicas || 0,
+        esq_reflexos: dadosPersonagem.defesa.esquiva_reflexos || 0,
+
+        pericias: dadosPersonagem.pericias || {},
+
+        inventario: Object.values(dadosPersonagem.inventario || {}),
+
+        habilidadesPassivas: dadosPersonagem.habilidadesPassivas || [],
+        habilidadesAtivas: dadosPersonagem.habilidadesAtivas || [],
+
+        resistencias: (dadosPersonagem.resistencias || []).filter(
+            r => r.tipo.trim() !== '' || r.desc.trim() !== ''
+        )
+    };
+
+    try {
+        const resposta = await fetch('api/personagem_salvar.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        const resultado = await resposta.json();
+
+        if (!resposta.ok || !resultado.sucesso) {
+            mostrarToast(resultado.mensagem || 'Erro ao salvar a ficha.', 'error');
+            return;
+        }
+
+        mostrarToast('Ficha salva no banco de dados!', 'success');
+
+    } catch (erro) {
+        console.error('Erro ao salvar ficha:', erro);
+        mostrarToast('Não foi possível conectar ao servidor.', 'error');
+    }
 }
+
 
 // ============================================
 // ATRIBUTOS
@@ -719,7 +865,7 @@ function adicionarItem() {
     if (!dadosPersonagem.inventario) dadosPersonagem.inventario = {};
     const id = 'item_' + Date.now();
     dadosPersonagem.inventario[id] = { nome: 'Novo Item', peso: 0, tipo: 'item', desc: '' };
-    salvarNoStorage(dadosPersonagem);
+    salvarFicha();
     renderizarInventario();
     renderizarAcessoRapido();
 }
@@ -727,7 +873,7 @@ function adicionarItem() {
 function removerItem(id) {
     if (!confirm('Remover este item?')) return;
     delete dadosPersonagem.inventario[id];
-    salvarNoStorage(dadosPersonagem);
+    salvarFicha();
     renderizarInventario();
     renderizarAcessoRapido();
 }
@@ -735,7 +881,7 @@ function removerItem(id) {
 function atualizarItem(id, campo, valor) {
     if (!dadosPersonagem.inventario[id]) return;
     dadosPersonagem.inventario[id][campo] = valor;
-    salvarNoStorage(dadosPersonagem);
+    salvarFicha();
     renderizarInventario();
     renderizarAcessoRapido();
 }
@@ -896,21 +1042,21 @@ function renderizarResistencias() {
 function adicionarResistencia() {
     if (!dadosPersonagem.resistencias) dadosPersonagem.resistencias = [];
     dadosPersonagem.resistencias.push({ tipo: '', desc: '' });
-    salvarNoStorage(dadosPersonagem);
+    salvarFicha();
     renderizarResistencias();
 }
 
 function removerResistencia(index) {
     if (!dadosPersonagem.resistencias) return;
     dadosPersonagem.resistencias.splice(index, 1);
-    salvarNoStorage(dadosPersonagem);
+    salvarFicha();
     renderizarResistencias();
 }
 
 function atualizarResistencia(index, campo, valor) {
     if (!dadosPersonagem.resistencias) return;
     dadosPersonagem.resistencias[index][campo] = valor;
-    salvarNoStorage(dadosPersonagem);
+    salvarFicha();
 }
 
 // ============================================
@@ -953,28 +1099,28 @@ function renderizarPassivas() {
 function adicionarPassiva() {
     if (!dadosPersonagem.habilidadesPassivas) dadosPersonagem.habilidadesPassivas = [];
     dadosPersonagem.habilidadesPassivas.push({ nome: 'Nova Habilidade', categoria: 'Maestria', desc: '', expandida: false });
-    salvarNoStorage(dadosPersonagem);
+    salvarFicha();
     renderizarPassivas();
 }
 
 function togglePassiva(index) {
     if (!dadosPersonagem.habilidadesPassivas) return;
     dadosPersonagem.habilidadesPassivas[index].expandida = !dadosPersonagem.habilidadesPassivas[index].expandida;
-    salvarNoStorage(dadosPersonagem);
+    salvarFicha();
     renderizarPassivas();
 }
 
 function atualizarPassiva(index, campo, valor) {
     if (!dadosPersonagem.habilidadesPassivas) return;
     dadosPersonagem.habilidadesPassivas[index][campo] = valor;
-    salvarNoStorage(dadosPersonagem);
+    salvarFicha();
     renderizarPassivas();
 }
 
 function removerPassiva(index) {
     if (!confirm('Remover esta habilidade?')) return;
     dadosPersonagem.habilidadesPassivas.splice(index, 1);
-    salvarNoStorage(dadosPersonagem);
+    salvarFicha();
     renderizarPassivas();
 }
 
@@ -1068,28 +1214,28 @@ function adicionarAtiva() {
         desc: '',
         expandida: false
     });
-    salvarNoStorage(dadosPersonagem);
+    salvarFicha();
     renderizarAtivas();
 }
 
 function toggleAtiva(index) {
     if (!dadosPersonagem.habilidadesAtivas) return;
     dadosPersonagem.habilidadesAtivas[index].expandida = !dadosPersonagem.habilidadesAtivas[index].expandida;
-    salvarNoStorage(dadosPersonagem);
+    salvarFicha();
     renderizarAtivas();
 }
 
 function atualizarAtiva(index, campo, valor) {
     if (!dadosPersonagem.habilidadesAtivas) return;
     dadosPersonagem.habilidadesAtivas[index][campo] = valor;
-    salvarNoStorage(dadosPersonagem);
+    salvarFicha();
     renderizarAtivas();
 }
 
 function removerAtiva(index) {
     if (!confirm('Remover este poder?')) return;
     dadosPersonagem.habilidadesAtivas.splice(index, 1);
-    salvarNoStorage(dadosPersonagem);
+    salvarFicha();
     renderizarAtivas();
 }
 

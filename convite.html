@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Convite para campanha</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #171717;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+
+        .convite-container {
+            width: 100%;
+            max-width: 500px;
+            padding: 30px;
+            background: #242424;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .convite-container img {
+            width: 100%;
+            max-height: 220px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+
+        h1 {
+            margin-bottom: 10px;
+        }
+
+        p {
+            color: #ccc;
+            line-height: 1.5;
+        }
+
+        button {
+            margin-top: 20px;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            background: #8b5cf6;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #7444d8;
+        }
+
+        .erro {
+            color: #ff7777;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="convite-container">
+        <h1>Convite para campanha</h1>
+
+        <div id="conteudo">
+            <p>Carregando informações da campanha...</p>
+        </div>
+    </div>
+
+    <script>
+        let campanhaAtual = null;
+        let personagemSelecionado = null;
+
+        async function carregarConvite() {
+            const parametros = new URLSearchParams(window.location.search);
+            const codigo = parametros.get("convite");
+            const conteudo = document.getElementById("conteudo");
+
+            if (!codigo) {
+                conteudo.innerHTML = '<p class="erro">Nenhum código de convite foi informado.</p>';
+                return;
+            }
+
+            try {
+                // Busca os dados públicos da campanha
+                const resposta = await fetch(
+                    `api/convite_buscar.php?convite=${encodeURIComponent(codigo)}`
+                );
+
+                const dados = await resposta.json();
+
+                if (!dados.sucesso) {
+                    conteudo.innerHTML = `<p class="erro">${escaparHTML(dados.mensagem)}</p>`;
+                    return;
+                }
+
+                campanhaAtual = dados.campanha;
+
+                conteudo.innerHTML = `
+                    <h2>${escaparHTML(campanhaAtual.nome)}</h2>
+                    ${campanhaAtual.img ? `<img src="${escaparHTML(campanhaAtual.img)}" alt="Imagem da campanha">` : ""}
+                    <p>${escaparHTML(campanhaAtual.descricao || "Esta campanha não possui descrição.")}</p>
+                    <p>${campanhaAtual.privada ? "Campanha privada" : "Campanha pública"}</p>
+                    <div id="selecao-personagem">
+                        <p>Verificando sua conta...</p>
+                    </div>
+                `;
+
+                await carregarPersonagens(codigo);
+
+            } catch (erro) {
+                conteudo.innerHTML = '<p class="erro">Não foi possível carregar o convite.</p>';
+            }
+        }
+
+        async function carregarPersonagens(codigo) {
+            const area = document.getElementById("selecao-personagem");
+
+            try {
+                const resposta = await fetch(
+                    `api/convite_personagens.php?convite=${encodeURIComponent(codigo)}`
+                );
+
+                const dados = await resposta.json();
+
+                if (resposta.status === 401) {
+                    area.innerHTML = `
+                        <p>Você precisa entrar na sua conta para participar.</p>
+                        <a href="index.html">Ir para o login</a>
+                        <p>Depois de entrar, abra novamente este link de convite.</p>
+                    `;
+                    return;
+                }
+
+                if (!dados.sucesso) {
+                    area.innerHTML = `<p class="erro">${escaparHTML(dados.mensagem)}</p>`;
+                    return;
+                }
+
+                if (dados.personagens.length === 0) {
+                    area.innerHTML = `
+                        <p>Você não possui personagens disponíveis para esta campanha.</p>
+                        <p>Crie um personagem ou libere um que esteja em outra campanha.</p>
+                    `;
+                    return;
+                }
+
+                let opcoes = dados.personagens.map(p => `
+                    <option value="${escaparHTML(p.id)}">
+                        ${escaparHTML(p.nome)} - ${escaparHTML(p.classe || "Sem classe")} (Nível ${escaparHTML(p.nivel)})
+                    </option>
+                `).join("");
+
+                area.innerHTML = `
+                    <h3>Escolha seu personagem</h3>
+                    <select id="personagem-escolhido">
+                        <option value="">Selecione um personagem</option>
+                        ${opcoes}
+                    </select>
+                    <button onclick="confirmarSelecao()">Continuar</button>
+                    <p id="mensagem-selecao"></p>
+                `;
+
+            } catch (erro) {
+                area.innerHTML = '<p class="erro">Erro ao carregar seus personagens.</p>';
+            }
+        }
+
+        
+async function confirmarSelecao() {
+    const select = document.getElementById("personagem-escolhido");
+    const mensagem = document.getElementById("mensagem-selecao");
+
+    if (!select || !select.value) {
+        mensagem.textContent = "Selecione um personagem primeiro.";
+        return;
+    }
+
+    const parametros = new URLSearchParams(window.location.search);
+    const codigo = parametros.get("convite");
+
+    const botao = document.querySelector("#selecao-personagem button");
+    botao.disabled = true;
+    botao.textContent = "Entrando...";
+
+    try {
+        const resposta = await fetch("api/convite_entrar.php", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                convite: codigo,
+                personagem_id: select.value
+            })
+        });
+
+        const dados = await resposta.json();
+
+        if (!dados.sucesso) {
+            mensagem.textContent = dados.mensagem;
+            botao.disabled = false;
+            botao.textContent = "Continuar";
+            return;
+        }
+
+        mensagem.textContent = "Entrada confirmada! Redirecionando...";
+
+        setTimeout(() => {
+            window.location.href = `party.html?id=${encodeURIComponent(dados.campanha_id)}`;
+        }, 1000);
+
+    } catch (erro) {
+        mensagem.textContent = "Não foi possível concluir sua entrada.";
+        botao.disabled = false;
+        botao.textContent = "Continuar";
+    }
+}
+
+
+        function escaparHTML(valor) {
+            return String(valor).replace(/[&<>"']/g, caractere => ({
+                "&": "&amp;",
+                "<": "&lt;",
+                ">": "&gt;",
+                '"': "&quot;",
+                "'": "&#039;"
+            })[caractere]);
+        }
+
+        carregarConvite();
+    </script>
+</body>
+</html>

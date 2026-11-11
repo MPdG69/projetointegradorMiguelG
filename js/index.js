@@ -154,28 +154,29 @@ async function init() {
 }
 
 function carregarDados() {
-    const campanhasSalvas = localStorage.getItem('apoteose_campanhas');
-    if (campanhasSalvas) {
-        try { estado.campanhas = JSON.parse(campanhasSalvas); }
-        catch (e) { estado.campanhas = { ...CAMPANHAS }; }
-    } else {
-        estado.campanhas = { ...CAMPANHAS };
-        salvarCampanhas();
-    }
-    
+    // Campanhas agora são carregadas exclusivamente pelo banco de dados.
+    estado.campanhas = {};
+
     const personagensSalvos = localStorage.getItem('apoteose_personagens');
+
     if (personagensSalvos) {
-        try { estado.personagens = JSON.parse(personagensSalvos); }
-        catch (e) { estado.personagens = { 'p_max': { ...PERSONAGEM_MAX } }; }
+        try {
+            estado.personagens = JSON.parse(personagensSalvos);
+        } catch (e) {
+            estado.personagens = { 'p_max': { ...PERSONAGEM_MAX } };
+        }
     } else {
         estado.personagens = { 'p_max': { ...PERSONAGEM_MAX } };
         salvarPersonagens();
     }
-    
+
     if (!estado.personagens['p_max']) {
         estado.personagens['p_max'] = { ...PERSONAGEM_MAX };
         salvarPersonagens();
     }
+
+    // Remove a antiga lista de campanhas simuladas.
+    localStorage.removeItem('apoteose_campanhas');
 }
 
 function salvarCampanhas() {
@@ -202,20 +203,24 @@ function mostrarTela(id) {
 function switchMainTab(tab) {
     document.querySelectorAll('.main-content').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.main-nav .nav-btn').forEach(el => el.classList.remove('active'));
-    
+
     const tabMap = {
         'personagens': 'tab-personagens',
         'campanhas': 'tab-campanhas',
         'party': 'tab-party',
         'admin': 'tab-admin'
     };
-    
+
     const target = document.getElementById(tabMap[tab]);
     if (target) target.classList.add('active');
-    
+
     document.querySelectorAll('.main-nav .nav-btn').forEach(btn => {
         if (btn.id === 'nav-' + tab) btn.classList.add('active');
     });
+
+    if (tab === 'admin' && estado.usuario?.tipo === 'admin') {
+        renderizarUsuariosAdmin();
+    }
 }
 
 // ============================================
@@ -277,20 +282,22 @@ function entrarComoAnonimo() {
     entrarNaSessao();
 }
 
+
 function entrarNaSessao() {
     const user = estado.usuario;
-    
+
     document.getElementById('usuario-nome').textContent = user.nome;
     const badge = document.getElementById('usuario-tipo-badge');
-    
+
     if (user.tipo === 'admin') {
         badge.textContent = 'Admin';
         badge.className = 'badge-admin';
         document.getElementById('nav-admin').style.display = 'flex';
-        document.getElementById('btn-novo-personagem').style.display = 'none';
+        document.getElementById('btn-novo-personagem').style.display = 'inline-flex';
         document.getElementById('btn-perfil').style.display = 'inline-flex';
-        document.getElementById('nav-personagens-label').textContent = 'Personagens';
-        document.getElementById('personagens-titulo').textContent = 'Personagens';
+        document.getElementById('nav-personagens-label').textContent = 'Meus Personagens';
+        document.getElementById('personagens-titulo').textContent = 'Meus Personagens';
+
     } else if (user.tipo === 'anonimo') {
         badge.textContent = 'Anônimo';
         badge.className = 'badge-anonimo';
@@ -299,6 +306,7 @@ function entrarNaSessao() {
         document.getElementById('btn-perfil').style.display = 'none';
         document.getElementById('nav-personagens-label').textContent = 'Personagens Públicos';
         document.getElementById('personagens-titulo').textContent = 'Personagens Públicos';
+
     } else {
         badge.textContent = 'Normal';
         badge.className = 'badge-normal';
@@ -308,25 +316,25 @@ function entrarNaSessao() {
         document.getElementById('nav-personagens-label').textContent = 'Meus Personagens';
         document.getElementById('personagens-titulo').textContent = 'Meus Personagens';
     }
-    
+
     document.getElementById('perfil-usuario').value = user.nome || '';
     document.getElementById('perfil-email').value = user.email || '';
     document.getElementById('perfil-avatar-img').src = user.foto || '';
     document.getElementById('perfil-foto').value = user.foto || '';
-    
-    mostrarTela('tela-principal');
-    renderizarFiltros();
 
-    if (user.tipo === 'normal') {
-        carregarPersonagensBanco();
-    } else {
+    mostrarTela('tela-principal');
+
+    if (user.tipo === 'anonimo') {
         renderizarPersonagens();
+    } else {
+        carregarPersonagensBanco();
     }
 
-    renderizarCampanhas();
-    renderizarAdmin();
+    carregarCampanhasBanco();
+
     switchMainTab('personagens');
 }
+
 
 async function handleLogout() {
     try {
@@ -657,6 +665,7 @@ async function carregarPersonagensBanco() {
     }
 }
 
+
 function renderizarPersonagens() {
     const container = document.getElementById('lista-personagens');
     const user = estado.usuario;
@@ -670,11 +679,10 @@ function renderizarPersonagens() {
 
         personagens = personagens.filter(p => campPublicas.includes(p.campanha));
 
-    } else if (user.tipo === 'admin') {
-        personagens = [];
-
     } else {
-        personagens = personagens.filter(p => String(p.dono) === String(user.id));
+        personagens = personagens.filter(p =>
+            String(p.dono ?? p.usuario_id) === String(user.id)
+        );
     }
 
     if (personagens.length === 0) {
@@ -704,6 +712,7 @@ function renderizarPersonagens() {
     `).join('');
 }
 
+
 function abrirFicha(id) {
     const p = estado.personagens[id];
     if (!p) {
@@ -731,6 +740,41 @@ function abrirFicha(id) {
 // ============================================
 // CAMPANHAS
 // ============================================
+
+async function carregarCampanhasBanco() {
+    try {
+        const resposta = await fetch('api/campanhas_listar.php');
+        const dados = await resposta.json();
+
+        if (!dados.sucesso) {
+            mostrarToast(dados.mensagem || 'Erro ao carregar campanhas.', 'error');
+            return;
+        }
+
+        estado.campanhas = {};
+
+        dados.campanhas.forEach(c => {
+            estado.campanhas[c.id] = {
+                id: c.id,
+                nome: c.nome,
+                desc: c.descricao || '',
+                img: c.img || '',
+                privada: Boolean(c.privada),
+                link: c.link || '',
+                dono: c.criado_por_usuario_id,
+                participantes: []
+            };
+        });
+
+        renderizarCampanhas();
+        renderizarFiltros();
+        renderizarAdmin();
+
+    } catch (erro) {
+        console.error('Erro ao carregar campanhas:', erro);
+        mostrarToast('Não foi possível carregar as campanhas.', 'error');
+    }
+}
 
 function renderizarCampanhas() {
     const container = document.getElementById('lista-campanhas');
@@ -830,7 +874,6 @@ function renderizarAdmin() {
                         <div style="font-weight:bold;">${c.nome}</div>
                         <div style="font-size:0.8rem; color:var(--text-dim);">
                             ${c.privada ? '🔒 Privada' : '🌍 Pública'}
-                            ${c.senha ? ' | Senha: ' + '•'.repeat(c.senha.length) : ''}
                             ${c.participantes ? ' | ' + c.participantes.length + ' participantes' : ''}
                         </div>
                     </div>
@@ -855,74 +898,164 @@ function renderizarAdmin() {
 // GERENCIAMENTO DE USUÁRIOS (ADMIN)
 // ============================================
 
-function renderizarUsuariosAdmin() {
+async function renderizarUsuariosAdmin() {
     const container = document.getElementById('lista-usuarios-admin');
-    if (!container || estado.usuario?.tipo !== 'admin') {
-        if (container) container.innerHTML = '';
+
+    if (!container) return;
+
+    if (estado.usuario?.tipo !== 'admin') {
+        container.innerHTML = '';
         return;
     }
 
-    const lista = Object.values(USUARIOS);
+    container.innerHTML = `
+        <div style="text-align:center; color:var(--text-dim); padding:20px;">
+            Carregando usuários...
+        </div>
+    `;
 
-    if (lista.length === 0) {
-        container.innerHTML = `
-            <div style="text-align:center; color:var(--text-dim); padding:20px;">
-                Nenhum usuário cadastrado.
-            </div>
-        `;
-        return;
+    try {
+        const resposta = await fetch('api/usuarios_listar.php');
+        const dados = await resposta.json();
+
+        if (!dados.sucesso) {
+            container.textContent = dados.mensagem || 'Não foi possível carregar os usuários.';
+            return;
+        }
+
+        const usuarios = dados.usuarios || [];
+
+        if (usuarios.length === 0) {
+            container.textContent = 'Nenhum usuário cadastrado.';
+            return;
+        }
+
+        container.innerHTML = '';
+
+        usuarios.forEach(u => {
+            const isAdmin = u.tipo === 'admin';
+            const isSelf = String(u.id) === String(estado.usuario.id);
+
+            const item = document.createElement('div');
+            item.style.cssText = `
+                background:var(--bg-card);
+                border:1px solid var(--border);
+                border-radius:8px;
+                padding:12px 20px;
+                display:flex;
+                justify-content:space-between;
+                align-items:center;
+                margin-bottom:8px;
+                flex-wrap:wrap;
+                gap:10px;
+            `;
+
+            const informacoes = document.createElement('div');
+            informacoes.style.cssText = `
+                display:flex;
+                align-items:center;
+                gap:10px;
+                flex-wrap:wrap;
+            `;
+
+            const nome = document.createElement('strong');
+            nome.textContent = u.nome;
+
+            const email = document.createElement('span');
+            email.style.cssText = 'color:var(--text-dim); font-size:0.8rem;';
+            email.textContent = u.email;
+
+            const username = document.createElement('span');
+            username.style.cssText = 'color:var(--text-dim); font-size:0.8rem;';
+            username.textContent = '@' + u.username;
+
+            const badge = document.createElement('span');
+            badge.style.cssText = `
+                font-size:0.65rem;
+                padding:2px 10px;
+                border-radius:12px;
+                background:${isAdmin ? 'var(--accent-purple)' : 'var(--accent-green)'};
+                color:white;
+            `;
+            badge.textContent = u.tipo.toUpperCase();
+
+            informacoes.append(nome, username, email, badge);
+
+            const acoes = document.createElement('div');
+            acoes.style.cssText = 'display:flex; gap:8px;';
+
+            if (isSelf) {
+                const voce = document.createElement('span');
+                voce.style.cssText = 'color:var(--text-dim); font-size:0.8rem;';
+                voce.textContent = '(Você)';
+                acoes.appendChild(voce);
+            } else {
+                const botao = document.createElement('button');
+
+                if (isAdmin) {
+                    botao.className = 'btn-secondary';
+                    botao.innerHTML = '<i class="ph ph-user"></i> Remover Admin';
+                    botao.addEventListener('click', () => {
+                        alterarPermissaoUsuario(u.id, 'normal');
+                    });
+                } else {
+                    botao.className = 'btn-primary';
+                    botao.innerHTML = '<i class="ph ph-shield-plus"></i> Tornar Admin';
+                    botao.addEventListener('click', () => {
+                        alterarPermissaoUsuario(u.id, 'admin');
+                    });
+                }
+
+                botao.style.cssText = 'padding:4px 12px; font-size:0.8rem;';
+                acoes.appendChild(botao);
+            }
+
+            item.append(informacoes, acoes);
+            container.appendChild(item);
+        });
+
+    } catch (erro) {
+        console.error('Erro ao carregar usuários:', erro);
+        container.textContent = 'Erro de conexão ao carregar os usuários.';
     }
-
-    container.innerHTML = lista.map(u => {
-        const isAdmin = u.tipo === 'admin';
-        const isSelf = u.id === estado.usuario?.id;
-        
-        return `
-            <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:12px 20px; display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:10px;">
-                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                    <strong>${u.nome}</strong>
-                    <span style="color:var(--text-dim); font-size:0.8rem;">${u.email}</span>
-                    <span style="font-size:0.65rem; padding:2px 10px; border-radius:12px; background:${isAdmin ? 'var(--accent-purple)' : 'var(--accent-green)'}; color:white;">
-                        ${u.tipo.toUpperCase()}
-                    </span>
-                </div>
-                <div style="display:flex; gap:8px;">
-                    ${!isAdmin ? `
-                        <button class="btn-primary" onclick="promoverUsuarioAdmin('${u.id}')" style="padding:4px 12px; font-size:0.8rem;">
-                            <i class="ph ph-shield-plus"></i> Tornar Admin
-                        </button>
-                    ` : `
-                        ${!isSelf ? `
-                            <button class="btn-secondary" onclick="rebaixarUsuarioAdmin('${u.id}')" style="padding:4px 12px; font-size:0.8rem;">
-                                <i class="ph ph-user"></i> Remover Admin
-                            </button>
-                        ` : `
-                            <span style="color:var(--text-dim); font-size:0.7rem;">(Você)</span>
-                        `}
-                    `}
-                </div>
-            </div>
-        `;
-    }).join('');
 }
 
-function promoverUsuarioAdmin(userId) {
-    if (USUARIOS[userId]) {
-        USUARIOS[userId].tipo = 'admin';
-        mostrarToast(`✅ Usuário ${USUARIOS[userId].nome} agora é Administrador!`, 'success');
-        renderizarUsuariosAdmin();
-    }
-}
 
-function rebaixarUsuarioAdmin(userId) {
-    if (userId === estado.usuario.id) {
-        mostrarToast('⚠️ Você não pode remover seu próprio acesso Admin!', 'error');
+async function alterarPermissaoUsuario(userId, novoTipo) {
+    const acao = novoTipo === 'admin'
+        ? 'promover este usuário a administrador'
+        : 'remover a permissão de administrador deste usuário';
+
+    if (!confirm(`Tem certeza que deseja ${acao}?`)) {
         return;
     }
-    if (USUARIOS[userId]) {
-        USUARIOS[userId].tipo = 'normal';
-        mostrarToast(`ℹ️ Permissão Admin removida de ${USUARIOS[userId].nome}.`, 'info');
-        renderizarUsuariosAdmin();
+
+    try {
+        const resposta = await fetch('api/usuario_permissao.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                usuario_id: userId,
+                tipo: novoTipo
+            })
+        });
+
+        const dados = await resposta.json();
+
+        if (!dados.sucesso) {
+            mostrarToast(dados.mensagem || 'Não foi possível alterar a permissão.', 'error');
+            return;
+        }
+
+        mostrarToast(dados.mensagem, 'success');
+
+        await renderizarUsuariosAdmin();
+
+    } catch (erro) {
+        console.error('Erro ao alterar permissão:', erro);
+        mostrarToast('Erro de conexão ao alterar a permissão.', 'error');
     }
 }
 
@@ -946,7 +1079,16 @@ function abrirModalCampanha(campanhaId = null) {
         document.getElementById('campanha-desc').value = camp.desc || '';
         document.getElementById('campanha-privada').checked = camp.privada || false;
         document.getElementById('campanha-senha').value = camp.senha || '';
-        document.getElementById('campanha-link').value = camp.link || '';
+        if (camp.link) {
+    const url = new URL(window.location.href);
+    url.search = '';
+    url.hash = '';
+    url.searchParams.set('convite', camp.link);
+
+    document.getElementById('campanha-link').value = url.toString();
+} else {
+    document.getElementById('campanha-link').value = '';
+}
         document.getElementById('campanha-senha-field').style.display = camp.privada ? 'block' : 'none';
         document.getElementById('btn-apagar-campanha').style.display = 'inline-flex';
     } else {
@@ -962,6 +1104,21 @@ function abrirModalCampanha(campanhaId = null) {
     }
     
     document.getElementById('modal-campanha').classList.add('active');
+
+    const participantesField = document.getElementById('campanha-participantes-field');
+
+if (participantesField) {
+    if (campanhaId) {
+        participantesField.style.display = 'block';
+        carregarParticipantesCampanha(campanhaId);
+    } else {
+        participantesField.style.display = 'none';
+        document.getElementById('campanha-participantes-lista').innerHTML = '';
+        document.getElementById('campanha-personagem-selecionado').innerHTML =
+            '<option value="">Selecione um personagem</option>';
+    }
+}
+
 }
 
 function fecharModalCampanha() {
@@ -975,67 +1132,343 @@ function toggleCampanhaSenha() {
 }
 
 function gerarLinkCampanha() {
-    const id = estado.campanhaEditandoId || 'c' + Date.now();
-    const link = 'convite-' + id + '-' + Math.random().toString(36).substr(2, 6);
-    document.getElementById('campanha-link').value = link;
-    mostrarToast('🔗 Link de convite gerado!', 'success');
+    const id = estado.campanhaEditandoId;
+    const camp = estado.campanhas[id];
+
+    if (!camp || !camp.link) {
+        mostrarToast('Salve a campanha antes de copiar o link.', 'error');
+        return;
+    }
+
+    const linkCompleto = `${window.location.origin}/projetointegradorMiguelG-main/convite.html?convite=${camp.link}`;
+
+    document.getElementById('campanha-link').value = linkCompleto;
+
+    navigator.clipboard.writeText(linkCompleto)
+        .then(() => {
+            mostrarToast('Link de convite copiado!', 'success');
+        })
+        .catch(() => {
+            mostrarToast('Não foi possível copiar automaticamente. Copie o endereço manualmente.', 'error');
+        });
 }
 
-function salvarCampanha() {
+
+async function salvarCampanha() {
     const nome = document.getElementById('campanha-nome').value.trim();
     const img = document.getElementById('campanha-img').value.trim();
     const desc = document.getElementById('campanha-desc').value.trim();
     const privada = document.getElementById('campanha-privada').checked;
     const senha = document.getElementById('campanha-senha').value.trim();
-    const link = document.getElementById('campanha-link').value.trim() || 'convite-' + Date.now().toString(36);
-    
+
     if (!nome) {
         mostrarToast('Por favor, informe o nome da campanha.', 'error');
         return;
     }
-    
+
     if (privada && !senha) {
         mostrarToast('Campanhas privadas precisam de uma senha.', 'error');
         return;
     }
-    
-    const id = estado.campanhaEditandoId || 'c' + Date.now();
-    
-    estado.campanhas[id] = {
-        id: id,
-        nome: nome,
-        img: img,
-        desc: desc,
-        privada: privada,
-        senha: privada ? senha : '',
-        link: link,
-        dono: estado.usuario.id,
-        participantes: estado.campanhas[id]?.participantes || []
-    };
-    
-    salvarCampanhas();
-    fecharModalCampanha();
-    renderizarCampanhas();
-    renderizarFiltros();
-    renderizarAdmin();
-    mostrarToast('✅ Campanha salva com sucesso!', 'success');
-}
 
-function apagarCampanha() {
-    if (!estado.campanhaEditandoId) {
-        mostrarToast('Nenhuma campanha selecionada.', 'error');
+    if (estado.campanhaEditandoId) {
+        mostrarToast('A edição de campanhas será integrada na próxima etapa.', 'error');
         return;
     }
-    
-    if (!confirm('Tem certeza que deseja apagar esta campanha?')) return;
-    
-    delete estado.campanhas[estado.campanhaEditandoId];
-    salvarCampanhas();
-    fecharModalCampanha();
-    renderizarCampanhas();
-    renderizarFiltros();
-    renderizarAdmin();
-    mostrarToast('🗑️ Campanha apagada.', 'info');
+
+    try {
+        const resposta = await fetch('api/campanhas_criar.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                nome: nome,
+                img: img,
+                desc: desc,
+                privada: privada,
+                senha: senha
+            })
+        });
+
+        const resultado = await resposta.json();
+
+        if (!resultado.sucesso) {
+            mostrarToast(resultado.mensagem || 'Erro ao criar campanha.', 'error');
+            return;
+        }
+
+        const campanha = resultado.campanha;
+
+        estado.campanhas[campanha.id] = {
+            ...campanha,
+            participantes: []
+        };
+
+        fecharModalCampanha();
+        renderizarCampanhas();
+        renderizarFiltros();
+        renderizarAdmin();
+
+        mostrarToast('Campanha criada com sucesso!', 'success');
+
+    } catch (erro) {
+        console.error('Erro ao criar campanha:', erro);
+        mostrarToast('Não foi possível conectar ao servidor.', 'error');
+    }
+}
+
+
+
+async function salvarCampanha() {
+    const nome = document.getElementById('campanha-nome').value.trim();
+    const img = document.getElementById('campanha-img').value.trim();
+    const descricao = document.getElementById('campanha-desc').value.trim();
+    const privada = document.getElementById('campanha-privada').checked;
+    const senha = document.getElementById('campanha-senha').value.trim();
+    const link = document.getElementById('campanha-link').value.trim();
+
+    if (!nome) {
+        mostrarToast('Informe o nome da campanha.', 'error');
+        return;
+    }
+
+    if (privada && !senha && !estado.campanhaEditandoId) {
+        mostrarToast('Informe uma senha para a campanha privada.', 'error');
+        return;
+    }
+
+    const dados = {
+        nome,
+        img,
+        descricao,
+        privada,
+        senha,
+        link
+    };
+
+    try {
+        let resposta;
+
+        if (estado.campanhaEditandoId) {
+            dados.id = estado.campanhaEditandoId;
+
+            resposta = await fetch('api/campanhas_editar.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(dados)
+            });
+        } else {
+            resposta = await fetch('api/campanhas_criar.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(dados)
+            });
+        }
+
+        const resultado = await resposta.json();
+
+        if (!resposta.ok || !resultado.sucesso) {
+            mostrarToast(resultado.mensagem || 'Não foi possível salvar a campanha.', 'error');
+            return;
+        }
+
+        mostrarToast(
+            estado.campanhaEditandoId
+                ? 'Campanha atualizada com sucesso!'
+                : 'Campanha criada com sucesso!',
+            'success'
+        );
+
+        fecharModalCampanha();
+
+        if (typeof carregarCampanhasBanco === 'function') {
+            await carregarCampanhasBanco();
+        } else if (typeof carregarCampanhas === 'function') {
+            await carregarCampanhas();
+        }
+
+    } catch (erro) {
+        console.error('Erro ao salvar campanha:', erro);
+        mostrarToast('Erro de comunicação com o servidor.', 'error');
+    }
+}
+
+
+// ============================================
+// PARTICIPANTES DA CAMPANHA (ADMIN)
+// ============================================
+
+async function carregarParticipantesCampanha(campanhaId) {
+    const lista = document.getElementById('campanha-participantes-lista');
+    const select = document.getElementById('campanha-personagem-selecionado');
+
+    lista.innerHTML = '<p style="color:var(--text-dim);">Carregando personagens...</p>';
+    select.innerHTML = '<option value="">Selecione um personagem</option>';
+
+    try {
+        const resposta = await fetch(
+            `api/campanha_personagens.php?campanha_id=${encodeURIComponent(campanhaId)}`
+        );
+
+        const dados = await resposta.json();
+
+        if (!dados.sucesso) {
+            lista.textContent = dados.mensagem || 'Erro ao carregar participantes.';
+            return;
+        }
+
+        // Renderiza os participantes atuais.
+        if (dados.participantes.length === 0) {
+            lista.innerHTML = `
+                <p style="color:var(--text-dim); font-size:0.85rem;">
+                    Nenhum personagem nesta campanha.
+                </p>
+            `;
+        } else {
+            lista.innerHTML = '';
+
+            dados.participantes.forEach(personagem => {
+                const item = document.createElement('div');
+
+                item.style.cssText = `
+                    display:flex;
+                    justify-content:space-between;
+                    align-items:center;
+                    gap:10px;
+                    padding:10px;
+                    margin-bottom:8px;
+                    background:var(--bg-card);
+                    border:1px solid var(--border);
+                    border-radius:6px;
+                `;
+
+                const informacoes = document.createElement('div');
+
+                const nome = document.createElement('strong');
+                nome.textContent = personagem.nome;
+
+                const detalhes = document.createElement('div');
+                detalhes.style.cssText = 'font-size:0.8rem; color:var(--text-dim);';
+                detalhes.textContent =
+                    `${personagem.classe || 'Sem classe'} | Nível ${personagem.nivel} | Dono: ${personagem.dono || 'Desconhecido'}`;
+
+                informacoes.append(nome, detalhes);
+
+                const botao = document.createElement('button');
+                botao.type = 'button';
+                botao.textContent = 'Remover';
+                botao.style.cssText = `
+                    background:none;
+                    border:1px solid #c44;
+                    color:#e66;
+                    padding:6px 10px;
+                    border-radius:4px;
+                    cursor:pointer;
+                `;
+
+                botao.addEventListener('click', () => {
+                    removerPersonagemCampanha(personagem.id);
+                });
+
+                item.append(informacoes, botao);
+                lista.appendChild(item);
+            });
+        }
+
+        // Preenche o seletor apenas com personagens sem campanha.
+        dados.personagens
+            .filter(p => !p.campanha_id)
+            .forEach(personagem => {
+                const opcao = document.createElement('option');
+                opcao.value = personagem.id;
+                opcao.textContent =
+                    `${personagem.nome} — ${personagem.dono || 'Dono desconhecido'} (Nível ${personagem.nivel})`;
+
+                select.appendChild(opcao);
+            });
+
+        if (select.options.length === 1) {
+            const opcao = document.createElement('option');
+            opcao.disabled = true;
+            opcao.textContent = 'Nenhum personagem disponível';
+            select.appendChild(opcao);
+        }
+
+    } catch (erro) {
+        console.error('Erro ao carregar participantes:', erro);
+        lista.textContent = 'Não foi possível carregar os participantes.';
+    }
+}
+
+
+async function adicionarPersonagemCampanha() {
+    const campanhaId = estado.campanhaEditandoId;
+    const personagemId = document.getElementById('campanha-personagem-selecionado').value;
+
+    if (!campanhaId || !personagemId) {
+        mostrarToast('Selecione um personagem.', 'error');
+        return;
+    }
+
+    await alterarPersonagemCampanha('adicionar', campanhaId, personagemId);
+}
+
+
+async function removerPersonagemCampanha(personagemId) {
+    const campanhaId = estado.campanhaEditandoId;
+
+    if (!campanhaId) return;
+
+    if (!confirm('Tem certeza que deseja remover este personagem da campanha?')) {
+        return;
+    }
+
+    await alterarPersonagemCampanha('remover', campanhaId, personagemId);
+}
+
+
+async function alterarPersonagemCampanha(acao, campanhaId, personagemId) {
+    try {
+        const resposta = await fetch('api/campanha_personagens.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                acao,
+                campanha_id: campanhaId,
+                personagem_id: personagemId
+            })
+        });
+
+        const dados = await resposta.json();
+
+        if (!dados.sucesso) {
+            mostrarToast(dados.mensagem || 'Não foi possível realizar a operação.', 'error');
+            return;
+        }
+
+        mostrarToast(dados.mensagem, 'success');
+
+        await carregarParticipantesCampanha(campanhaId);
+
+        // Atualiza também a contagem de participantes no painel.
+        if (estado.campanhas[campanhaId]) {
+            estado.campanhas[campanhaId].participantes =
+                Array.from(document.querySelectorAll('#campanha-participantes-lista > div'));
+        }
+
+        renderizarAdmin();
+
+    } catch (erro) {
+        console.error('Erro ao alterar participante:', erro);
+        mostrarToast('Erro de conexão com o servidor.', 'error');
+    }
 }
 
 // ============================================
@@ -1056,13 +1489,11 @@ function mostrarToast(mensagem, tipo = 'info') {
 // ============================================
 
 window.addEventListener('storage', function(e) {
-    if (e.key === 'apoteose_campanhas' || e.key === 'apoteose_personagens' || e.key === 'apoteose_rolagens') {
+    if (e.key === 'apoteose_personagens' || e.key === 'apoteose_rolagens') {
         carregarDados();
+
         if (estado.usuario) {
             renderizarPersonagens();
-            renderizarCampanhas();
-            renderizarFiltros();
-            renderizarAdmin();
         }
     }
 });

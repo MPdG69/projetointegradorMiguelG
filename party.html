@@ -364,243 +364,253 @@
     </div>
 
     <script>
-        // ============================================
-        // PARTY LOGIC
-        // ============================================
-        
         const params = new URLSearchParams(window.location.search);
         const campId = params.get('id');
+
         let updateInterval = null;
-        
-        function obterCampanha() {
-            try {
-                const data = JSON.parse(localStorage.getItem('apoteose_campanhas') || '{}');
-                return data[campId];
-            } catch (e) { return null; }
+
+        function escaparHTML(valor) {
+            return String(valor ?? '').replace(/[&<>"']/g, caractere => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            })[caractere]);
         }
-        
-        function obterPersonagens() {
-            try {
-                return JSON.parse(localStorage.getItem('apoteose_personagens') || '{}');
-            } catch (e) { return {}; }
-        }
-        
-        function obterLogs() {
-            try {
-                return JSON.parse(localStorage.getItem('apoteose_rolagens') || '[]');
-            } catch (e) { return []; }
-        }
-        
+
         function formatarHora(timestamp) {
-            const d = new Date(timestamp);
-            return d.toLocaleTimeString('pt-BR');
+            if (!timestamp) return '--:--';
+
+            const data = new Date(timestamp.replace(' ', 'T'));
+
+            return data.toLocaleTimeString('pt-BR');
         }
-        
-        function carregarParty() {
-            const camp = obterCampanha();
+
+        async function carregarParty() {
             const titulo = document.getElementById('campanha-titulo');
             const status = document.getElementById('campanha-status');
-            
-            if (!camp) {
-                titulo.textContent = 'Campanha não encontrada';
-                status.textContent = ' Erro';
-                status.className = 'badge-admin';
+
+            if (!campId) {
+                titulo.textContent = 'Nenhuma campanha selecionada';
+                status.textContent = 'Erro';
+                return;
+            }
+
+            try {
+                const resposta = await fetch(
+                    `api/party_buscar.php?id=${encodeURIComponent(campId)}`
+                );
+
+                const dados = await resposta.json();
+
+                if (!dados.sucesso) {
+                    throw new Error(dados.mensagem || 'Erro ao carregar campanha.');
+                }
+
+                const camp = dados.campanha;
+
+                titulo.textContent = `Campanha: ${camp.nome}`;
+                status.textContent = Number(camp.privada) ? 'Privada' : 'Pública';
+                status.className = Number(camp.privada)
+                    ? 'badge-admin'
+                    : 'badge-normal';
+
+                carregarMembros(dados.personagens);
+                carregarLogs(dados.rolagens);
+
+            } catch (erro) {
+                console.error('Erro ao carregar party:', erro);
+
+                titulo.textContent = 'Erro ao carregar campanha';
+
                 document.getElementById('party-members-list').innerHTML = `
                     <div class="empty-state">
                         <i class="ph ph-warning"></i>
-                        Campanha não encontrada ou foi removida.
+                        ${escaparHTML(erro.message)}
                     </div>
                 `;
-                return;
             }
-            
-            titulo.textContent = `Campanha: ${camp.nome}`;
-            status.textContent = camp.privada ? ' Privada' : ' Pública';
-            status.className = camp.privada ? 'badge-admin' : 'badge-normal';
-            
-            // Carregar membros
-            const personagens = obterPersonagens();
-            const membros = Object.values(personagens).filter(p => p.campanha === camp.nome);
+        }
+
+        function carregarMembros(personagens) {
             const list = document.getElementById('party-members-list');
-            
-            if (membros.length === 0) {
+
+            if (!personagens || personagens.length === 0) {
                 list.innerHTML = `
                     <div class="empty-state">
                         <i class="ph ph-users"></i>
                         Nenhum membro nesta party.
                     </div>
                 `;
-            } else {
-                list.innerHTML = membros.map(p => {
-                    const pvPct = Math.min(100, ((parseInt(p.pv_atual) || 0) / (parseInt(p.pv_max) || 1)) * 100);
-                    const edPct = Math.min(100, ((parseInt(p.ed_atual) || 0) / (parseInt(p.ed_max) || 1)) * 100);
-                    const ehPct = Math.min(100, ((parseInt(p.eh_atual) || 0) / (parseInt(p.eh_max) || 1)) * 100);
-                    
-                    return `
-                        <div class="member-card">
-                            <img class="avatar" src="${p.img || ''}" onerror="this.style.display='none'">
-                            <div class="info">
-                                <div class="name">${p.nome || 'Sem nome'}</div>
-                                <div class="class">${p.classe || ''} - Nv.${p.nivel || 0}</div>
-                            </div>
-                            <div class="stats">
-                                <div class="stat-item stat-pv">
-                                    <div class="stat-label">PV</div>
-                                    <div class="stat-value">${p.pv_atual || 0}/${p.pv_max || 0}</div>
-                                    <div class="stat-bar"><div class="fill" style="width:${pvPct}%"></div></div>
-                                </div>
-                                <div class="stat-item stat-ed">
-                                    <div class="stat-label">ED</div>
-                                    <div class="stat-value">${p.ed_atual || 0}/${p.ed_max || 0}</div>
-                                    <div class="stat-bar"><div class="fill" style="width:${edPct}%"></div></div>
-                                </div>
-                                <div class="stat-item stat-eh">
-                                    <div class="stat-label">EH</div>
-                                    <div class="stat-value">${p.eh_atual || 0}/${p.eh_max || 0}</div>
-                                    <div class="stat-bar"><div class="fill" style="width:${ehPct}%"></div></div>
-                                </div>
-                            </div>
-                            <div class="actions">
-                                <button onclick="window.location.href='ficha.html?id=${p.id}'">
-                                    <i class="ph ph-eye"></i> Ficha
-                                </button>
+                return;
+            }
+
+            list.innerHTML = personagens.map(p => {
+                const pvAtual = Number(p.pv_atual) || 0;
+                const pvMax = Number(p.pv_max) || 1;
+
+                const edAtual = Number(p.ed_atual) || 0;
+                const edMax = Number(p.ed_max) || 1;
+
+                const ehAtual = Number(p.eh_atual) || 0;
+                const ehMax = Number(p.eh_max) || 1;
+
+                const pvPct = Math.min(100, pvAtual / pvMax * 100);
+                const edPct = Math.min(100, edAtual / edMax * 100);
+                const ehPct = Math.min(100, ehAtual / ehMax * 100);
+
+                return `
+                    <div class="member-card">
+                        <img class="avatar"
+                            src="${escaparHTML(p.img)}"
+                            onerror="this.style.display='none'">
+
+                        <div class="info">
+                            <div class="name">${escaparHTML(p.nome || 'Sem nome')}</div>
+                            <div class="class">
+                                ${escaparHTML(p.classe || '')} - Nv.${escaparHTML(p.nivel)}
                             </div>
                         </div>
-                    `;
-                }).join('');
-            }
-            
-            // Carregar logs
-            carregarLogs();
+
+                        <div class="stats">
+                            <div class="stat-item stat-pv">
+                                <div class="stat-label">PV</div>
+                                <div class="stat-value">${pvAtual}/${pvMax === 1 && !p.pv_max ? 0 : pvMax}</div>
+                                <div class="stat-bar">
+                                    <div class="fill" style="width:${pvPct}%"></div>
+                                </div>
+                            </div>
+
+                            <div class="stat-item stat-ed">
+                                <div class="stat-label">ED</div>
+                                <div class="stat-value">${edAtual}/${p.ed_max || 0}</div>
+                                <div class="stat-bar">
+                                    <div class="fill" style="width:${edPct}%"></div>
+                                </div>
+                            </div>
+
+                            <div class="stat-item stat-eh">
+                                <div class="stat-label">EH</div>
+                                <div class="stat-value">${ehAtual}/${p.eh_max || 0}</div>
+                                <div class="stat-bar">
+                                    <div class="fill" style="width:${ehPct}%"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="actions">
+                            <button onclick="window.location.href='ficha.html?id=${encodeURIComponent(p.id)}'">
+                                <i class="ph ph-eye"></i> Ficha
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
         }
-        
-        function carregarLogs() {
-            const logs = obterLogs();
+
+        function carregarLogs(logs) {
             const container = document.getElementById('roll-log');
             const count = document.getElementById('log-count');
-            
-            if (logs.length === 0) {
+
+            if (!logs || logs.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
                         <i class="ph ph-dice"></i>
                         Aguardando rolagens...
                     </div>
                 `;
+
                 count.textContent = '0';
                 return;
             }
-            
+
             count.textContent = logs.length;
-            
-            const logsToShow = logs.slice(-30).reverse();
-            container.innerHTML = logsToShow.map(log => {
-                const isCrit = log.critico || false;
-                let resultado = log.resultado?.total || log.resultado || '—';
-                let detalhes = '';
-                
-                if (log.detalhes && typeof log.detalhes === 'string') {
-                    detalhes = log.detalhes;
-                } else if (log.resultado?.detalhes) {
-                    detalhes = log.resultado.detalhes;
-                }
-                
+
+            container.innerHTML = logs.map(log => {
+                const isCrit = Number(log.critico) === 1 || log.critico === true;
+
                 return `
                     <div class="roll-item ${isCrit ? 'critico' : ''}">
                         <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <span class="roll-personagem">${log.personagem || 'Desconhecido'}</span>
-                            <span class="roll-time">${formatarHora(log.timestamp || Date.now())}</span>
+                            <span class="roll-personagem">
+                                ${escaparHTML(log.personagem || 'Desconhecido')}
+                            </span>
+
+                            <span class="roll-time">
+                                ${formatarHora(log.criado_em)}
+                            </span>
                         </div>
+
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-top:2px;">
-                            <span class="roll-nome">${log.nome || log.tipo || 'Rolagem'}</span>
-                            <span class="roll-resultado">${isCrit ? '💥 ' : ''}${resultado}</span>
+                            <span class="roll-nome">
+                                ${escaparHTML(log.nome || log.tipo || 'Rolagem')}
+                            </span>
+
+                            <span class="roll-resultado">
+                                ${isCrit ? '💥 ' : ''}${escaparHTML(log.resultado || '—')}
+                            </span>
                         </div>
-                        ${detalhes ? `<div style="font-size:0.65rem; color:#666; margin-top:2px;">${detalhes}</div>` : ''}
+
+                        ${log.detalhes ? `
+                            <div style="font-size:0.65rem; color:#666; margin-top:2px;">
+                                ${escaparHTML(log.detalhes)}
+                            </div>
+                        ` : ''}
                     </div>
                 `;
             }).join('');
         }
-        
-        function atualizarParty() {
-            carregarParty();
-            mostrarToast(' Party atualizada!', 'info');
+
+        async function atualizarParty() {
+            await carregarParty();
+            mostrarToast('Party atualizada!', 'info');
         }
-        
-        // ============================================
-        // FUNÇÃO COPIAR LINK OBS - ADICIONADA AQUI
-        // ============================================
+
         function copiarLinkPartyOBS() {
-            const camp = obterCampanha();
-            if (!camp) {
-                mostrarToast('Campanha não encontrada!', 'error');
-                return;
-            }
-            
-            // MESMA LÓGICA DO ficha.js
-            const baseUrl = window.location.origin + window.location.pathname.replace('party.html', 'obs/party-obs.html');
-            const url = baseUrl + '?id=' + campId;
-            
-            // Copiar para clipboard
-            if (navigator.clipboard) {
-                navigator.clipboard.writeText(url).then(() => {
-                    mostrarToast(' Link OBS da Party copiado!', 'success');
-                }).catch(() => {
-                    // Fallback
+            const baseUrl = window.location.origin +
+                window.location.pathname.replace(
+                    'party.html',
+                    'obs/party-obs.html'
+                );
+
+            const url = baseUrl + '?id=' + encodeURIComponent(campId);
+
+            navigator.clipboard.writeText(url)
+                .then(() => mostrarToast('Link OBS da Party copiado!', 'success'))
+                .catch(() => {
                     const input = document.createElement('input');
                     input.value = url;
                     document.body.appendChild(input);
                     input.select();
                     document.execCommand('copy');
                     document.body.removeChild(input);
-                    mostrarToast(' Link OBS da Party copiado!', 'success');
+
+                    mostrarToast('Link OBS da Party copiado!', 'success');
                 });
-            } else {
-                // Fallback para navegadores antigos
-                const input = document.createElement('input');
-                input.value = url;
-                document.body.appendChild(input);
-                input.select();
-                document.execCommand('copy');
-                document.body.removeChild(input);
-                mostrarToast(' Link OBS da Party copiado!', 'success');
-            }
         }
-        
-        // Toast
+
         function mostrarToast(mensagem, tipo = 'info') {
             const toast = document.getElementById('toast');
+
             document.getElementById('toast-mensagem').textContent = mensagem;
+
             toast.className = 'toast ' + tipo;
             toast.style.display = 'block';
+
             clearTimeout(toast._timeout);
-            toast._timeout = setTimeout(() => { toast.style.display = 'none'; }, 3000);
+
+            toast._timeout = setTimeout(() => {
+                toast.style.display = 'none';
+            }, 3000);
         }
-        
-        // Inicializar
+
         function init() {
-            if (!campId) {
-                document.getElementById('campanha-titulo').textContent = '⚠️ Nenhuma campanha selecionada';
-                document.getElementById('party-members-list').innerHTML = `
-                    <div class="empty-state">
-                        <i class="ph ph-warning"></i>
-                        Nenhum ID de campanha fornecido.
-                    </div>
-                `;
-                return;
-            }
-            
             carregarParty();
-            
-            // Atualizar automaticamente
-            window.addEventListener('storage', (e) => {
-                if (e.key === 'apoteose_personagens' || e.key === 'apoteose_campanhas' || e.key === 'apoteose_rolagens') {
-                    carregarParty();
-                }
-            });
-            
-            // Polling para sincronia entre abas
+
             updateInterval = setInterval(carregarParty, 3000);
         }
-        
+
         document.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
